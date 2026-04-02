@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Kolla ut koden
         uses: actions/checkout@v4
+        with:
+          ref: main # Tvingar GitHub att använda main-grenen
 
       - name: Ladda ner data från tv.nu
         run: |
@@ -32,11 +34,3 @@ jobs:
             curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
             sleep 2 # Pausa i 2 sekunder mellan varje kanal för att undvika blockering
           done
-
-      - name: Spara filer till GitHub
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          git commit -m "Uppdaterat filmer från tv.nu" || exit 0
-          git push

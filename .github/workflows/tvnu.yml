@@ -34,3 +34,23 @@ jobs:
             curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
             sleep 2 # Pausa i 2 sekunder mellan varje kanal för att undvika blockering
           done
+
+          echo "--- LÅT OSS SE VAD SOM LADDADES NER ---"
+          ls -la data/
+          echo "--- INNEHÅLL I SVT1.JSON ---"
+          cat data/svt1.json | head -n 20
+
+      - name: Spara filer till GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          
+          # Commita ändringarna, eller gå vidare om inga ändringar finns (|| true)
+          git commit -m "Uppdaterat filmer från tv.nu" || true
+          
+          # Hämta den allra senaste versionen av main-grenen och lägg vår commit överst
+          git pull origin main --rebase
+          
+          # Skjut upp filerna specifikt till main-grenen
+          git push origin HEAD:main

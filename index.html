@@ -72,36 +72,17 @@
             { slug: 'svt-barn', name: 'SVT Barn' }
         ];
 
-        const today = new Date();
-        const dateStr = today.getFullYear() + '-' + 
-                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                        String(today.getDate()).padStart(2, '0');
-
         const guideDiv = document.getElementById('guide');
-        
-        // Paus-funktion
-        const sleep = ms => new Promise(r => setTimeout(r, ms));
 
         async function fetchChannel(channel, channelDiv) {
-            const cacheBuster = `&cb=${new Date().getTime()}`;
-            const targetUrl = `https://web-api.tv.nu/channels/${channel.slug}/schedule?date=${dateStr}&fullDay=true${cacheBuster}`;
-            
-            // Vi riggar upp TVÅ olika proxys
-            const proxy1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-            const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+            // Nu hämtar vi datan från vår EGEN mapp i GitHub!
+            const targetUrl = `data/${channel.slug}.json`;
 
             try {
-                // Försök med proxy 1 först
-                let response = await fetch(proxy1);
+                // Vi lägger till en liten cache-buster bara så du alltid får senaste filen när du laddar om
+                const response = await fetch(targetUrl + `?cb=${new Date().getTime()}`);
                 
-                // Om den blockerar (429 eller andra fel), hoppa direkt till proxy 2
-                if (!response.ok) {
-                    console.warn(`${channel.name} blockade proxy 1, testar reserv-proxyn...`);
-                    response = await fetch(proxy2);
-                }
-                
-                // Om BÅDA misslyckas kastar vi ett fel
-                if (!response.ok) throw new Error(`Båda proxyservrarna nekade anslutning (Status ${response.status}).`);
+                if (!response.ok) throw new Error(`Filen hittades inte (Är GitHub Action körd?)`);
                 
                 const jsonData = await response.json();
                 const broadcasts = (jsonData.data && jsonData.data.broadcasts) ? jsonData.data.broadcasts : [];
@@ -143,35 +124,27 @@
                 channelDiv.innerHTML = html;
 
             } catch (error) {
-                channelDiv.innerHTML = `<h2>${channel.name}</h2><p class="error">Gick inte att ansluta: ${error.message}</p>`;
+                channelDiv.innerHTML = `<h2>${channel.name}</h2><p class="error">${error.message}</p>`;
             }
         }
 
-        async function loadAllChannelsInOrder() {
-            const divElements = [];
-            
+        async function loadAllChannels() {
+            // Skapa alla rutorna direkt...
             channels.forEach(channel => {
                 const div = document.createElement('div');
                 div.className = 'channel';
                 div.innerHTML = `<h2>${channel.name}</h2>
                                  <div class="loading-container">
-                                    <div class="spinner"></div> I kö...
+                                    <div class="spinner"></div> Hämtar filmer...
                                  </div>`;
                 guideDiv.appendChild(div);
-                divElements.push(div);
+                
+                // Och ladda in alla SAMTIDIGT! Vi behöver inte stå i kö längre.
+                fetchChannel(channel, div);
             });
-
-            for (let i = 0; i < channels.length; i++) {
-                divElements[i].querySelector('.loading-container').innerHTML = `<div class="spinner"></div> Hämtar filmer...`;
-                
-                await fetchChannel(channels[i], divElements[i]);
-                
-                // Längre paus! 1500 millisekunder (1,5 sekunder) låter servrarna andas ut
-                await sleep(1500); 
-            }
         }
 
-        loadAllChannelsInOrder();
+        loadAllChannels();
     </script>
 </body>
 </html>

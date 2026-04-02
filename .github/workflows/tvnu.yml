@@ -2,7 +2,7 @@ name: Hämta Tv.nu Tablå
 
 on:
   schedule:
-    - cron: '0 2 * * *' # Körs kl 02:00 varje natt
+    - cron: '0 2 * * *' # Körs kl 02:00 varje natt (ca 03:00/04:00 svensk tid)
   workflow_dispatch: # Låter oss köra skriptet manuellt
 
 jobs:
@@ -14,31 +14,44 @@ jobs:
       - name: Kolla ut koden
         uses: actions/checkout@v4
         with:
-          ref: main # Tvingar GitHub att använda main-grenen
+          ref: main
 
       - name: Ladda ner data från tv.nu
         run: |
           DATE=$(date +%Y-%m-%d)
           mkdir -p data
           
-          # Vi låtsas vara en vanlig webbläsare
-          AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36"
+          # Vi maskerar oss som en modern Windows-dator med Chrome
+          AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
           # Lista på alla våra kanaler
           CHANNELS=("svt1" "svt2" "tv3" "tv4" "kanal-5" "tv6" "sjuan" "tv8" "kanal-9" "tv10" "kanal-11" "tv12" "v-sport-1" "kunskapskanalen" "svt-barn")
 
-          echo "Börjar ladda ner dagens kanaler..."
+          echo "Börjar ladda ner dagens kanaler med extra långa pauser..."
           
           for CH in "${CHANNELS[@]}"; do
             echo "Hämtar $CH..."
-            curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
-            sleep 2 # Pausa i 2 sekunder mellan varje kanal för att undvika blockering
+            
+            # Max 3 försök per kanal
+            for i in 1 2 3; do
+              curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
+              
+              # Kolla om vi fick ett felmeddelande i filen
+              if grep -q "error code: 1015" "data/${CH}.json" || grep -q "Access Denied" "data/${CH}.json" || [ ! -s "data/${CH}.json" ]; then
+                echo "Varning: Blockerad eller tom fil vid försök $i. Tar en rejäl paus på 45 sekunder..."
+                rm -f "data/${CH}.json"
+                sleep 45
+              else
+                # Filen ser okej ut (innehåller inte felkod)
+                echo "Lyckades hämta $CH."
+                break
+              fi
+            done
+            
+            # Vänta 15 sekunder innan nästa kanal laddas ner
+            echo "Väntar 15 sekunder inför nästa kanal..."
+            sleep 15
           done
-
-          echo "--- LÅT OSS SE VAD SOM LADDADES NER ---"
-          ls -la data/
-          echo "--- INNEHÅLL I SVT1.JSON ---"
-          cat data/svt1.json | head -n 20
 
       - name: Spara filer till GitHub
         run: |
@@ -46,11 +59,11 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
           
-          # Commita ändringarna, eller gå vidare om inga ändringar finns (|| true)
-          git commit -m "Uppdaterat filmer från tv.nu" || true
+          # Commita ändringarna, eller gå vidare om inga ändringar finns
+          git commit -m "Automatisk uppdatering av TV-filmer" || true
           
-          # Hämta den allra senaste versionen av main-grenen och lägg vår commit överst
+          # Synka med main-grenen ifall vi gjort manuella ändringar nyss
           git pull origin main --rebase
           
-          # Skjut upp filerna specifikt till main-grenen
+          # Pusha upp resultatet
           git push origin HEAD:main

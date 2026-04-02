@@ -17,7 +17,6 @@
         .description { display: block; font-size: 0.9em; color: #666; margin-top: 6px; line-height: 1.4; }
         .error { color: #888; font-style: italic; }
         
-        /* IMDb-styling */
         .imdb { 
             display: inline-block; 
             background: #f3ce13; 
@@ -32,11 +31,10 @@
         }
         .imdb:hover { background: #e0b000; }
 
-        /* Vår laddnings-snurra (Loader) */
         .loading-container { color: #666; font-style: italic; display: flex; align-items: center; }
         .spinner {
-            border: 3px solid #f3f3f3; /* Ljusgrå bakgrund */
-            border-top: 3px solid #1e88e5; /* Blå snurrande del */
+            border: 3px solid #f3f3f3; 
+            border-top: 3px solid #1e88e5; 
             border-radius: 50%;
             width: 16px;
             height: 16px;
@@ -80,23 +78,34 @@
                         String(today.getDate()).padStart(2, '0');
 
         const guideDiv = document.getElementById('guide');
+        
+        // Paus-funktion
         const sleep = ms => new Promise(r => setTimeout(r, ms));
 
         async function fetchChannel(channel, channelDiv) {
             const cacheBuster = `&cb=${new Date().getTime()}`;
             const targetUrl = `https://web-api.tv.nu/channels/${channel.slug}/schedule?date=${dateStr}&fullDay=true${cacheBuster}`;
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            
+            // Vi riggar upp TVÅ olika proxys
+            const proxy1 = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
             try {
-                const response = await fetch(proxyUrl);
+                // Försök med proxy 1 först
+                let response = await fetch(proxy1);
                 
-                if (response.status === 429) throw new Error("Blockerad (För många anrop).");
-                if (!response.ok) throw new Error(`Servern svarade med felkod ${response.status}`);
+                // Om den blockerar (429 eller andra fel), hoppa direkt till proxy 2
+                if (!response.ok) {
+                    console.warn(`${channel.name} blockade proxy 1, testar reserv-proxyn...`);
+                    response = await fetch(proxy2);
+                }
+                
+                // Om BÅDA misslyckas kastar vi ett fel
+                if (!response.ok) throw new Error(`Båda proxyservrarna nekade anslutning (Status ${response.status}).`);
                 
                 const jsonData = await response.json();
                 const broadcasts = (jsonData.data && jsonData.data.broadcasts) ? jsonData.data.broadcasts : [];
                 
-                // Hämta endast filmer
                 const movies = broadcasts.filter(prog => prog.isMovie === true);
                 
                 let html = `<h2>${channel.name}</h2>`;
@@ -112,7 +121,6 @@
                             const yearStr = prog.year ? ` (${prog.year})` : '';
                             const descStr = prog.description ? `<span class="description">${prog.description}</span>` : '';
                             
-                            // Plocka ut IMDb-betyget om det finns, annars lämna tomt!
                             let imdbBadge = '';
                             if (prog.imdb && prog.imdb.rating) {
                                 imdbBadge = `<a href="${prog.imdb.link}" target="_blank" class="imdb" title="Läs mer på IMDb">⭐ ${prog.imdb.rating}</a>`;
@@ -142,7 +150,6 @@
         async function loadAllChannelsInOrder() {
             const divElements = [];
             
-            // Rita upp alla korten med loadern ("snurran")
             channels.forEach(channel => {
                 const div = document.createElement('div');
                 div.className = 'channel';
@@ -155,11 +162,12 @@
             });
 
             for (let i = 0; i < channels.length; i++) {
-                // Uppdatera texten när just denna kanal hämtas
                 divElements[i].querySelector('.loading-container').innerHTML = `<div class="spinner"></div> Hämtar filmer...`;
                 
                 await fetchChannel(channels[i], divElements[i]);
-                await sleep(600); 
+                
+                // Längre paus! 1500 millisekunder (1,5 sekunder) låter servrarna andas ut
+                await sleep(1500); 
             }
         }
 

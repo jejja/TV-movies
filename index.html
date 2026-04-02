@@ -41,18 +41,6 @@
 
         const guideDiv = document.getElementById('guide');
 
-        // Smart funktion: Leta upp "broadcasts"-arrayen oavsett var i JSON-trädet Tv.nu gömmer den
-        function findBroadcasts(obj) {
-            if (obj && obj.broadcasts && Array.isArray(obj.broadcasts)) return obj.broadcasts;
-            for (let key in obj) {
-                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    let result = findBroadcasts(obj[key]);
-                    if (result.length > 0) return result;
-                }
-            }
-            return [];
-        }
-
         async function fetchChannel(channel) {
             const channelDiv = document.createElement('div');
             channelDiv.className = 'channel';
@@ -67,12 +55,12 @@
 
             try {
                 const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error("Kunde inte hämta data. (Blockerad av proxy/tv.nu)");
+                if (!response.ok) throw new Error("Kunde inte hämta data.");
                 
                 const jsonData = await response.json();
                 
-                // Använd vår smarta sökfunktion för att hitta listan på program
-                const broadcasts = findBroadcasts(jsonData);
+                // Rätt sökväg baserat på utskriften: data -> broadcasts
+                const broadcasts = (jsonData.data && jsonData.data.broadcasts) ? jsonData.data.broadcasts : [];
                 
                 let html = `<h2>${channel.name}</h2>`;
                 
@@ -80,22 +68,19 @@
                     html += `<p class="error">Ingen tablå hittades just nu.</p>`;
                 } else {
                     broadcasts.forEach(prog => {
-                        // Tv.nu svarar med en "Timestamp" (millisekunder eller sekunder), vi gör om det till klockslag!
-                        let dateObj;
-                        if (prog.startTime.toString().length === 10) {
-                            dateObj = new Date(prog.startTime * 1000); // Om sekunder
-                        } else {
-                            dateObj = new Date(prog.startTime); // Om millisekunder
+                        // Tiden ligger inbakad i ett underobjekt som heter "broadcast"
+                        if (prog.broadcast && prog.broadcast.startTime) {
+                            // Tiden är i millisekunder, skicka rakt in i new Date()
+                            const dateObj = new Date(prog.broadcast.startTime);
+                            const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                            
+                            html += `
+                                <div class="program">
+                                    <span class="time">${timeStr}</span>
+                                    <span class="title">${prog.title || 'Okänt program'}</span>
+                                </div>
+                            `;
                         }
-                        
-                        const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                        
-                        html += `
-                            <div class="program">
-                                <span class="time">${timeStr}</span>
-                                <span class="title">${prog.title || 'Okänt program'}</span>
-                            </div>
-                        `;
                     });
                 }
                 

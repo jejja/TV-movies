@@ -2,8 +2,8 @@ name: Hämta Tv.nu Tablå
 
 on:
   schedule:
-    - cron: '0 2 * * *' # Körs kl 02:00 varje natt (ca 03:00/04:00 svensk tid)
-  workflow_dispatch: # Låter oss köra skriptet manuellt
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   fetch-data:
@@ -16,41 +16,45 @@ jobs:
         with:
           ref: main
 
-      - name: Ladda ner data från tv.nu
+      - name: Ladda ner data via Proxys
         run: |
           DATE=$(date +%Y-%m-%d)
           mkdir -p data
           
-          # Vi maskerar oss som en modern Windows-dator med Chrome
-          AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-
-          # Lista på alla våra kanaler
+          AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36"
           CHANNELS=("svt1" "svt2" "tv3" "tv4" "kanal-5" "tv6" "sjuan" "tv8" "kanal-9" "tv10" "kanal-11" "tv12" "v-sport-1" "kunskapskanalen" "svt-barn")
-
-          echo "Börjar ladda ner dagens kanaler med extra långa pauser..."
           
           for CH in "${CHANNELS[@]}"; do
-            echo "Hämtar $CH..."
+            echo "====== Hämtar $CH ======"
             
-            # Max 3 försök per kanal
-            for i in 1 2 3; do
-              curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
+            # API-länken vi egentligen vill nå
+            TARGET_URL="https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
+            
+            # Gör om länken så den är säker att skicka in i en proxy (URL Encoding)
+            ENCODED_URL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$TARGET_URL', safe=''))")
+            
+            # FÖRSÖK 1: Använd AllOrigins som sköld
+            curl -s -L -o "data/${CH}.json" "https://api.allorigins.win/raw?url=${ENCODED_URL}"
+            
+            # Kolla om filen innehåller ordet 'broadcasts' (då vet vi att det är en äkta tv-tablå)
+            if ! grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
+              echo "Blockerad av Cloudflare. Byter till reserv-proxy (corsproxy.io)..."
               
-              # Kolla om vi fick ett felmeddelande i filen
-              if grep -q "error code: 1015" "data/${CH}.json" || grep -q "Access Denied" "data/${CH}.json" || [ ! -s "data/${CH}.json" ]; then
-                echo "Varning: Blockerad eller tom fil vid försök $i. Tar en rejäl paus på 45 sekunder..."
+              # FÖRSÖK 2: Om AllOrigins misslyckas, kör Corsproxy
+              curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://corsproxy.io/?${ENCODED_URL}"
+              
+              if ! grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
+                echo "Misslyckades helt. Båda proxyservrarna blockade. Tar bort tom fil."
                 rm -f "data/${CH}.json"
-                sleep 45
               else
-                # Filen ser okej ut (innehåller inte felkod)
-                echo "Lyckades hämta $CH."
-                break
+                echo "Lyckades via Corsproxy!"
               fi
-            done
+            else
+              echo "Lyckades via AllOrigins!"
+            fi
             
-            # Vänta 15 sekunder innan nästa kanal laddas ner
-            echo "Väntar 15 sekunder inför nästa kanal..."
-            sleep 15
+            # Vi väntar 5 sekunder innan vi skickar proxyn på nästa kanal
+            sleep 5
           done
 
       - name: Spara filer till GitHub
@@ -58,12 +62,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
-          
-          # Commita ändringarna, eller gå vidare om inga ändringar finns
-          git commit -m "Automatisk uppdatering av TV-filmer" || true
-          
-          # Synka med main-grenen ifall vi gjort manuella ändringar nyss
+          git commit -m "Automatisk uppdatering av TV-filmer via proxy" || true
           git pull origin main --rebase
-          
-          # Pusha upp resultatet
           git push origin HEAD:main

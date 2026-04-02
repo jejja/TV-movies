@@ -1,0 +1,33 @@
+name: Hämta TV-tablå
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Körs automatiskt kl 02:00 varje natt
+  workflow_dispatch: # Gör att vi kan klicka på en knapp för att köra den direkt
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Ger scriptet tillåtelse att spara filer i ditt repo
+    steps:
+      - name: Kolla ut koden
+        uses: actions/checkout@v4
+
+      - name: Skapa datamapp och ladda ner XML
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          mkdir -p data
+          curl -s -o data/svt1.xml "http://xmltv.xmltv.se/svt1.svt.se_$DATE.xml"
+          curl -s -o data/svt2.xml "http://xmltv.xmltv.se/svt2.svt.se_$DATE.xml"
+          curl -s -o data/tv3.xml "http://xmltv.xmltv.se/tv3.se_$DATE.xml"
+          curl -s -o data/tv4.xml "http://xmltv.xmltv.se/tv4.se_$DATE.xml"
+          curl -s -o data/kanal5.xml "http://xmltv.xmltv.se/kanal5.se_$DATE.xml"
+
+      - name: Spara filerna i repot
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "Uppdaterat TV-tablå" || exit 0
+          git push

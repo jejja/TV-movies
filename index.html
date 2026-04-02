@@ -5,50 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dagens TV-tablå</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f4f4;
-            color: #333;
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #f4f4f4; 
+            color: #333; 
             margin: 0;
             padding: 20px;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
         }
-        .channel {
-            background: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        .channel { 
+            background: #fff; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
         }
-        .channel h2 {
-            margin-top: 0;
-            color: #d32f2f;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
+        .channel h2 { 
+            margin-top: 0; 
+            color: #d32f2f; 
+            border-bottom: 2px solid #eee; 
+            padding-bottom: 10px; 
         }
-        .program {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-            display: flex;
+        .program { 
+            padding: 8px 0; 
+            border-bottom: 1px solid #eee; 
+            display: flex; 
         }
-        .program:last-child {
-            border-bottom: none;
+        .program:last-child { 
+            border-bottom: none; 
         }
-        .time {
-            font-weight: bold;
-            width: 60px;
-            flex-shrink: 0;
-            color: #555;
+        .time { 
+            font-weight: bold; 
+            width: 60px; 
+            flex-shrink: 0; 
+            color: #555; 
         }
-        .title {
-            flex-grow: 1;
+        .title { 
+            flex-grow: 1; 
         }
-        .loading {
-            font-style: italic;
-            color: #666;
+        .loading { 
+            font-style: italic; 
+            color: #666; 
         }
         .error {
             color: #d32f2f;
@@ -56,93 +56,87 @@
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>Svensk TV-tablå (Idag)</h1>
-    <div id="guide"></div>
-</div>
+    <div class="container">
+        <h1>Svensk TV-tablå (Idag)</h1>
+        <div id="guide"></div>
+    </div>
 
-<script>
-    // Lista på kanaler och deras ID hos xmltv.se
-    const channels = [
-        { id: 'svt1.svt.se', name: 'SVT 1' },
-        { id: 'svt2.svt.se', name: 'SVT 2' },
-        { id: 'tv3.se', name: 'TV3' },
-        { id: 'tv4.se', name: 'TV4' },
-        { id: 'kanal5.se', name: 'Kanal 5' }
-    ];
+    <script>
+        const channels = [
+            { id: 'svt1.svt.se', name: 'SVT 1' },
+            { id: 'svt2.svt.se', name: 'SVT 2' },
+            { id: 'tv3.se', name: 'TV3' },
+            { id: 'tv4.se', name: 'TV4' },
+            { id: 'kanal5.se', name: 'Kanal 5' }
+        ];
 
-    // Skapa dagens datum i formatet ÅÅÅÅ-MM-DD
-    const today = new Date();
-    const dateStr = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
+        const today = new Date();
+        const dateStr = today.getFullYear() + '-' + 
+                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(today.getDate()).padStart(2, '0');
 
-    const guideDiv = document.getElementById('guide');
+        const guideDiv = document.getElementById('guide');
 
-    // Funktion för att göra om XMLTV-tid (ex: 20260402140000 +0200) till HH:MM
-    function parseTime(xmltvTime) {
-        if (!xmltvTime) return '';
-        const hours = xmltvTime.substring(8, 10);
-        const mins = xmltvTime.substring(10, 12);
-        return `${hours}:${mins}`;
-    }
+        function parseTime(xmltvTime) {
+            if (!xmltvTime) return '';
+            const hours = xmltvTime.substring(8, 10);
+            const mins = xmltvTime.substring(10, 12);
+            return `${hours}:${mins}`;
+        }
 
-    async function fetchChannel(channel) {
-        const channelDiv = document.createElement('div');
-        channelDiv.className = 'channel';
-        channelDiv.innerHTML = `<h2>${channel.name}</h2><div class="loading">Hämtar dagens tablå...</div>`;
-        guideDiv.appendChild(channelDiv);
+        async function fetchChannel(channel) {
+            const channelDiv = document.createElement('div');
+            channelDiv.className = 'channel';
+            channelDiv.innerHTML = `<h2>${channel.name}</h2><div class="loading">Hämtar dagens tablå...</div>`;
+            guideDiv.appendChild(channelDiv);
 
-        const targetUrl = `http://xmltv.xmltv.se/${channel.id}_${dateStr}.xml`;
+            const targetUrl = `http://xmltv.xmltv.se/${channel.id}_${dateStr}.xml`;
+            
+            // Ny proxy: corsproxy.io som skickar med urlen som den är
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-        // PROXY: api.codetabs.com (Pålitlig för text/XML)
-        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-
-        try {
-            const response = await fetch(proxyUrl);
-
-            // Kasta ett fel om vi får till exempel 404, 502 eller 522 tillbaka
-            if (!response.ok) {
-                throw new Error(`Proxy-fel: ${response.status}`);
-            }
-
-            // Hämta svaret som rå text direkt
-            const textData = await response.text();
-
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(textData, "text/xml");
-            const programmes = xmlDoc.getElementsByTagName("programme");
-
-            let html = `<h2>${channel.name}</h2>`;
-
-            if (programmes.length === 0) {
-                html += `<p class="error">Ingen tablå hittades (Filen saknas eventuellt för just detta datum på xmltv.se).</p>`;
-            } else {
-                for (let i = 0; i < programmes.length; i++) {
-                    const prog = programmes[i];
-                    const start = prog.getAttribute("start");
-                    const titleEl = prog.getElementsByTagName("title")[0];
-                    const title = titleEl ? titleEl.textContent : "Okänt program";
-
-                    html += `
+            try {
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy-fel: ${response.status} ${response.statusText}`);
+                }
+                
+                const textData = await response.text();
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(textData, "text/xml");
+                const programmes = xmlDoc.getElementsByTagName("programme");
+                
+                let html = `<h2>${channel.name}</h2>`;
+                
+                if (programmes.length === 0) {
+                    html += `<p class="error">Ingen tablå hittades.</p>`;
+                } else {
+                    for (let i = 0; i < programmes.length; i++) {
+                        const prog = programmes[i];
+                        const start = prog.getAttribute("start");
+                        const titleEl = prog.getElementsByTagName("title")[0];
+                        const title = titleEl ? titleEl.textContent : "Okänt program";
+                        
+                        html += `
                             <div class="program">
                                 <span class="time">${parseTime(start)}</span>
                                 <span class="title">${title}</span>
                             </div>
                         `;
+                    }
                 }
+                
+                channelDiv.innerHTML = html;
+
+            } catch (error) {
+                channelDiv.innerHTML = `<h2>${channel.name}</h2><p class="error">Gick inte att ansluta: ${error.message}</p>`;
+                console.error("Fel vid hämtning av", channel.name, error);
             }
-
-            channelDiv.innerHTML = html;
-
-        } catch (error) {
-            channelDiv.innerHTML = `<h2>${channel.name}</h2><p class="error">Gick inte att ansluta: ${error.message}</p>`;
-            console.error("Fel vid hämtning av", channel.name, error);
         }
-    }
 
-    // Kör funktionen ovan för varje kanal i vår lista
-    channels.forEach(fetchChannel);
-</script>
+        channels.forEach(fetchChannel);
+    </script>
 </body>
 </html>

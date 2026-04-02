@@ -1,0 +1,42 @@
+name: Hämta Tv.nu Tablå
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Körs kl 02:00 varje natt
+  workflow_dispatch: # Låter oss köra skriptet manuellt
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Kolla ut koden
+        uses: actions/checkout@v4
+
+      - name: Ladda ner data från tv.nu
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          mkdir -p data
+          
+          # Vi låtsas vara en vanlig webbläsare
+          AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36"
+
+          # Lista på alla våra kanaler
+          CHANNELS=("svt1" "svt2" "tv3" "tv4" "kanal-5" "tv6" "sjuan" "tv8" "kanal-9" "tv10" "kanal-11" "tv12" "v-sport-1" "kunskapskanalen" "svt-barn")
+
+          echo "Börjar ladda ner dagens kanaler..."
+          
+          for CH in "${CHANNELS[@]}"; do
+            echo "Hämtar $CH..."
+            curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
+            sleep 2 # Pausa i 2 sekunder mellan varje kanal för att undvika blockering
+          done
+
+      - name: Spara filer till GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "Uppdaterat filmer från tv.nu" || exit 0
+          git push

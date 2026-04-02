@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagens TV-tablå (Tv.nu)</title>
+    <title>Dagens Filmer på TV</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
@@ -12,25 +12,36 @@
         .program { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; }
         .program:last-child { border-bottom: none; }
         .time { font-weight: bold; width: 60px; flex-shrink: 0; color: #555; }
-        .title { flex-grow: 1; }
+        .title { flex-grow: 1; font-weight: bold; }
+        .description { display: block; font-size: 0.9em; color: #666; margin-top: 4px; font-weight: normal; }
         .loading { font-style: italic; color: #666; }
-        .error { color: #d32f2f; }
+        .error { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Svensk TV-tablå (Idag)</h1>
+        <h1>Dagens Filmer på TV</h1>
         <div id="guide"></div>
     </div>
 
     <script>
-        // Kanal-id:n (slugs) exakt så som tv.nu namnger dem i sitt system
+        // Alla önskade kanaler med korrekta id:n (slugs) för Tv.nu
         const channels = [
             { slug: 'svt1', name: 'SVT 1' },
             { slug: 'svt2', name: 'SVT 2' },
             { slug: 'tv3', name: 'TV3' },
             { slug: 'tv4', name: 'TV4' },
-            { slug: 'kanal-5', name: 'Kanal 5' }
+            { slug: 'kanal-5', name: 'Kanal 5' },
+            { slug: 'tv6', name: 'TV6' },
+            { slug: 'sjuan', name: 'Sjuan' },
+            { slug: 'tv8', name: 'TV8' },
+            { slug: 'kanal-9', name: 'Kanal 9' },
+            { slug: 'tv10', name: 'TV10' },
+            { slug: 'kanal-11', name: 'Kanal 11' },
+            { slug: 'tv12', name: 'TV12' },
+            { slug: 'v-sport-1', name: 'V Sport 1' },
+            { slug: 'kunskapskanalen', name: 'Kunskapskanalen' },
+            { slug: 'svt-barn', name: 'SVT Barn' }
         ];
 
         // Dagens datum (ÅÅÅÅ-MM-DD)
@@ -44,13 +55,10 @@
         async function fetchChannel(channel) {
             const channelDiv = document.createElement('div');
             channelDiv.className = 'channel';
-            channelDiv.innerHTML = `<h2>${channel.name}</h2><div class="loading">Hämtar tablå från Tv.nu...</div>`;
+            channelDiv.innerHTML = `<h2>${channel.name}</h2><div class="loading">Hämtar filmer...</div>`;
             guideDiv.appendChild(channelDiv);
 
-            // Mål-API hos Tv.nu
             const targetUrl = `https://web-api.tv.nu/channels/${channel.slug}/schedule?date=${dateStr}&fullDay=true`;
-            
-            // Proxy för att lura webbläsarens inbyggda spärrar (CORS)
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
             try {
@@ -58,26 +66,31 @@
                 if (!response.ok) throw new Error("Kunde inte hämta data.");
                 
                 const jsonData = await response.json();
-                
-                // Rätt sökväg baserat på utskriften: data -> broadcasts
                 const broadcasts = (jsonData.data && jsonData.data.broadcasts) ? jsonData.data.broadcasts : [];
+                
+                // Filtrera ut ENDAST filmer!
+                const movies = broadcasts.filter(prog => prog.isMovie === true);
                 
                 let html = `<h2>${channel.name}</h2>`;
                 
-                if (broadcasts.length === 0) {
-                    html += `<p class="error">Ingen tablå hittades just nu.</p>`;
+                if (movies.length === 0) {
+                    html += `<p class="error">Inga filmer visas på denna kanal idag.</p>`;
                 } else {
-                    broadcasts.forEach(prog => {
-                        // Tiden ligger inbakad i ett underobjekt som heter "broadcast"
+                    movies.forEach(prog => {
                         if (prog.broadcast && prog.broadcast.startTime) {
-                            // Tiden är i millisekunder, skicka rakt in i new Date()
                             const dateObj = new Date(prog.broadcast.startTime);
                             const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                            
+                            // Jag lade till en rad för att visa beskrivningen och årtalet också, eftersom det är trevligt för just filmer!
+                            const yearStr = prog.year ? ` (${prog.year})` : '';
+                            const descStr = prog.description ? `<span class="description">${prog.description}</span>` : '';
                             
                             html += `
                                 <div class="program">
                                     <span class="time">${timeStr}</span>
-                                    <span class="title">${prog.title || 'Okänt program'}</span>
+                                    <span class="title">${prog.title || 'Okänd film'} ${yearStr}
+                                        ${descStr}
+                                    </span>
                                 </div>
                             `;
                         }
@@ -91,7 +104,6 @@
             }
         }
 
-        // Ladda alla kanaler
         channels.forEach(fetchChannel);
     </script>
 </body>

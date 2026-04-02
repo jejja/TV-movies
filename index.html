@@ -13,7 +13,7 @@
         .program:last-child { border-bottom: none; }
         .time { font-weight: bold; width: 60px; flex-shrink: 0; color: #555; }
         .title { flex-grow: 1; }
-        .error { color: #d32f2f; }
+        .error { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
@@ -23,8 +23,8 @@
     </div>
 
     <script>
-        // Kanalerna vi vill plocka ut från TVmaze och visa
-        const wantedChannels = ['SVT1', 'SVT2', 'TV3', 'TV4', 'Kanal 5'];
+        // Vi lägger till Play-tjänster i listan också!
+        const wantedChannels = ['SVT1', 'SVT2', 'SVT Play', 'TV3', 'TV4', 'TV4 Play', 'Kanal 5'];
 
         async function fetchGuide() {
             const guideDiv = document.getElementById('guide');
@@ -36,17 +36,35 @@
                 
                 const data = await response.json();
                 
-                // Sortera in programmen i rätt kanaler
+                // Förbered vår data-struktur
                 const channelsData = {};
                 wantedChannels.forEach(ch => channelsData[ch] = []);
 
+                // Skapa en smart, "tvättad" söklista (små bokstäver, inga mellanslag)
+                // Resultat: ['svt1', 'svt2', 'svtplay', 'tv3', 'tv4', 'tv4play', 'kanal5']
+                const cleanWanted = wantedChannels.map(c => c.toLowerCase().replace(/\s/g, ''));
+
                 data.forEach(item => {
-                    const networkName = item.show.network ? item.show.network.name : null;
-                    if (networkName && wantedChannels.includes(networkName)) {
-                        channelsData[networkName].push({
-                            time: item.airtime,
-                            title: item.show.name
-                        });
+                    // 1. Försök hitta namnet på kanalen, kolla både 'network' och 'webChannel'
+                    const rawName = (item.show.network ? item.show.network.name : null) 
+                                 || (item.show.webChannel ? item.show.webChannel.name : null);
+
+                    if (rawName) {
+                        // 2. Tvätta kanalnamnet vi fick från API:et på samma sätt
+                        const cleanRaw = rawName.toLowerCase().replace(/\s/g, '');
+                        
+                        // 3. Kolla om det tvättade namnet finns i vår söklista
+                        const index = cleanWanted.indexOf(cleanRaw);
+                        
+                        if (index !== -1) {
+                            // Vi fick en träff! Hämta originalnamnet från vår egen lista (t.ex. "Kanal 5")
+                            const correctName = wantedChannels[index];
+                            
+                            channelsData[correctName].push({
+                                time: item.airtime || "Tid saknas",
+                                title: item.show.name
+                            });
+                        }
                     }
                 });
 
@@ -59,9 +77,9 @@
                     let html = `<div class="channel"><h2>${channelName}</h2>`;
                     
                     if (programs.length === 0) {
-                        html += `<p>Inga program hittades idag.</p>`;
+                        html += `<p class="error">Inga program hittades idag.</p>`;
                     } else {
-                        // Sortera på tid för säkerhets skull
+                        // Sortera på tid så det ligger i rätt kronologisk ordning
                         programs.sort((a, b) => a.time.localeCompare(b.time));
                         
                         programs.forEach(prog => {
@@ -78,7 +96,7 @@
                 });
 
             } catch (error) {
-                guideDiv.innerHTML = `<p class="error">Något gick fel: ${error.message}</p>`;
+                guideDiv.innerHTML = `<p style="color:red">Något gick fel: ${error.message}</p>`;
             }
         }
 

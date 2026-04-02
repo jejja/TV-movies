@@ -2,156 +2,273 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagens Filmer på TV</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Filmguiden 🍿</title>
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1e88e5">
-
+    <meta name="theme-color" content="#1a1a1a">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍿</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍿</text></svg>">
-    <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .channel { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .channel h2 { margin-top: 0; color: #1e88e5; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .program { padding: 12px 0; border-bottom: 1px solid #eee; display: flex; }
-        .program:last-child { border-bottom: none; }
-        .time { font-weight: bold; width: 60px; flex-shrink: 0; color: #555; }
-        .title-container { flex-grow: 1; }
-        .title { font-weight: bold; font-size: 1.1em; }
-        .description { display: block; font-size: 0.9em; color: #666; margin-top: 6px; line-height: 1.4; }
-        .error { color: #888; font-style: italic; }
-        
-        .imdb { 
-            display: inline-block; 
-            background: #f3ce13; 
-            color: #000; 
-            font-weight: bold; 
-            font-size: 0.8em; 
-            padding: 2px 6px; 
-            border-radius: 4px; 
-            text-decoration: none; 
-            margin-left: 8px;
-            vertical-align: text-bottom;
-        }
-        .imdb:hover { background: #e0b000; }
 
-        .loading-container { color: #666; font-style: italic; display: flex; align-items: center; }
-        .spinner {
-            border: 3px solid #f3f3f3; 
-            border-top: 3px solid #1e88e5; 
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
+    <style>
+        :root {
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #ffffff;
+            --accent: #e50914;
+            --gray: #b3b3b3;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding-bottom: 50px;
         }
+
+        /* Flikar */
+        .tabs {
+            display: flex;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 100;
+            padding: 10px;
+            gap: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: #2a2a2a;
+            color: var(--gray);
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Grid & Puffar */
+        .container {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .movie-card {
+            background: var(--card);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .movie-card:active { transform: scale(0.95); }
+
+        .poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            background: #333;
+            object-fit: cover;
+        }
+
+        .info { padding: 8px; }
+        .title { font-size: 14px; font-weight: bold; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .meta { font-size: 11px; color: var(--gray); }
+        .imdb-badge { position: absolute; top: 5px; right: 5px; background: #f5c518; color: black; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-content {
+            background: var(--card);
+            max-width: 500px;
+            width: 100%;
+            border-radius: 15px;
+            position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-body { padding: 20px; }
+        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 24px; color: white; cursor: pointer; z-index: 10; }
+        .modal-desc { color: var(--gray); line-height: 1.5; font-size: 14px; margin: 15px 0; }
+
+        .status { text-align: center; padding: 20px; color: var(--gray); font-size: 14px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Dagens Filmer på TV</h1>
-        <div id="guide"></div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('today')">Filmer Idag</button>
+        <button class="tab" onclick="switchTab('history')">Senaste 10 dagarna</button>
+    </div>
+
+    <div id="status" class="status">Hämtar filmer...</div>
+    <div id="movie-grid" class="container"></div>
+
+    <div id="movieModal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeModal()">×</span>
+            <img id="modalPoster" class="poster" style="aspect-ratio: 16/9;">
+            <div class="modal-body">
+                <h2 id="modalTitle"></h2>
+                <div id="modalMeta" class="meta"></div>
+                <p id="modalDesc" class="modal-desc"></p>
+                <a id="modalImdb" target="_blank" style="color: #f5c518; text-decoration: none; font-weight: bold;">Visa på IMDb →</a>
+            </div>
+        </div>
     </div>
 
     <script>
-        const channels = [
-            { slug: 'svt1', name: 'SVT 1' },
-            { slug: 'svt2', name: 'SVT 2' },
-            { slug: 'tv3', name: 'TV3' },
-            { slug: 'tv4', name: 'TV4' },
-            { slug: 'kanal-5', name: 'Kanal 5' },
-            { slug: 'tv6', name: 'TV6' },
-            { slug: 'sjuan', name: 'Sjuan' },
-            { slug: 'tv8', name: 'TV8' },
-            { slug: 'kanal-9', name: 'Kanal 9' },
-            { slug: 'tv10', name: 'TV10' },
-            { slug: 'kanal-11', name: 'Kanal 11' },
-            { slug: 'tv12', name: 'TV12' },
-            { slug: 'v-sport-1', name: 'V Sport 1' },
-            { slug: 'kunskapskanalen', name: 'Kunskapskanalen' },
-            { slug: 'svt-barn', name: 'SVT Barn' }
-        ];
+        const CHANNELS = ["svt1", "svt2", "tv3", "tv4", "kanal-5", "tv6", "sjuan", "tv8", "kanal-9", "tv10", "kanal-11", "tv12", "v-sport-1", "kunskapskanalen", "svt-barn"];
+        let currentTab = 'today';
 
-        const guideDiv = document.getElementById('guide');
-
-        async function fetchChannel(channel, channelDiv) {
-            // Nu hämtar vi datan från vår EGEN mapp i GitHub!
-            const targetUrl = `data/${channel.slug}.json`;
-
-            try {
-                // Vi lägger till en liten cache-buster bara så du alltid får senaste filen när du laddar om
-                const response = await fetch(targetUrl + `?cb=${new Date().getTime()}`);
-                
-                if (!response.ok) throw new Error(`Filen hittades inte (Är GitHub Action körd?)`);
-                
-                const jsonData = await response.json();
-                const broadcasts = (jsonData.data && jsonData.data.broadcasts) ? jsonData.data.broadcasts : [];
-                
-                const movies = broadcasts.filter(prog => prog.isMovie === true);
-                
-                let html = `<h2>${channel.name}</h2>`;
-                
-                if (movies.length === 0) {
-                    html += `<p class="error">Inga filmer visas på denna kanal idag.</p>`;
-                } else {
-                    movies.forEach(prog => {
-                        if (prog.broadcast && prog.broadcast.startTime) {
-                            const dateObj = new Date(prog.broadcast.startTime);
-                            const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                            
-                            const yearStr = prog.year ? ` (${prog.year})` : '';
-                            const descStr = prog.description ? `<span class="description">${prog.description}</span>` : '';
-                            
-                            let imdbBadge = '';
-                            if (prog.imdb && prog.imdb.rating) {
-                                imdbBadge = `<a href="${prog.imdb.link}" target="_blank" class="imdb" title="Läs mer på IMDb">⭐ ${prog.imdb.rating}</a>`;
-                            }
-                            
-                            html += `
-                                <div class="program">
-                                    <span class="time">${timeStr}</span>
-                                    <div class="title-container">
-                                        <span class="title">${prog.title || 'Okänd film'}${yearStr}</span>
-                                        ${imdbBadge}
-                                        ${descStr}
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    });
-                }
-                
-                channelDiv.innerHTML = html;
-
-            } catch (error) {
-                channelDiv.innerHTML = `<h2>${channel.name}</h2><p class="error">${error.message}</p>`;
-            }
+        // 1. Körs direkt när sidan laddas
+        async function init() {
+            await cleanupOldHistory();
+            await fetchDayData(new Date()); // Hämta dagens
+            render();
         }
 
-        async function loadAllChannels() {
-            // Skapa alla rutorna direkt...
-            channels.forEach(channel => {
-                const div = document.createElement('div');
-                div.className = 'channel';
-                div.innerHTML = `<h2>${channel.name}</h2>
-                                 <div class="loading-container">
-                                    <div class="spinner"></div> Hämtar filmer...
-                                 </div>`;
-                guideDiv.appendChild(div);
-                
-                // Och ladda in alla SAMTIDIGT! Vi behöver inte stå i kö längre.
-                fetchChannel(channel, div);
+        // 2. Hämtar data för ett specifikt datum
+        async function fetchDayData(date) {
+            const dateStr = date.toISOString().split('T')[0];
+            
+            // Kolla om vi redan har datan lokalt
+            if (localStorage.getItem(`movies_${dateStr}`)) return;
+
+            document.getElementById('status').innerText = `Uppdaterar bibliotek för ${dateStr}...`;
+            let allMovies = [];
+
+            for (const ch of CHANNELS) {
+                try {
+                    const url = `https://web-api.tv.nu/channels/${ch}/schedule?date=${dateStr}&fullDay=true`;
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                    
+                    const response = await fetch(proxyUrl);
+                    const data = await response.json();
+
+                    if (data.broadcasts) {
+                        const movies = data.broadcasts
+                            .filter(b => b.isMovie)
+                            .map(b => ({
+                                title: b.title,
+                                startTime: b.startTime,
+                                channel: ch.toUpperCase(),
+                                desc: b.description,
+                                imdbRate: b.imdbRate,
+                                imdbUrl: b.imdbUrl,
+                                image: b.image ? b.image.url : null,
+                                date: dateStr
+                            }));
+                        allMovies = [...allMovies, ...movies];
+                    }
+                } catch (e) { console.error(`Kunde inte hämta ${ch}`, e); }
+            }
+
+            localStorage.setItem(`movies_${dateStr}`, JSON.stringify(allMovies));
+            document.getElementById('status').innerText = "";
+        }
+
+        // 3. Visa filmerna
+        function render() {
+            const grid = document.getElementById('movie-grid');
+            grid.innerHTML = "";
+            let moviesToShow = [];
+
+            if (currentTab === 'today') {
+                const today = new Date().toISOString().split('T')[0];
+                moviesToShow = JSON.parse(localStorage.getItem(`movies_${today}`) || "[]");
+            } else {
+                // Hämta ALLA sparade dagar utom idag
+                const today = new Date().toISOString().split('T')[0];
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('movies_') && !key.includes(today)) {
+                        moviesToShow = [...moviesToShow, ...JSON.parse(localStorage.getItem(key))];
+                    }
+                });
+                // Sortera historik: Nyast först
+                moviesToShow.sort((a, b) => b.startTime - a.startTime);
+            }
+
+            if (moviesToShow.length === 0) {
+                grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center;'>Inga filmer hittades än. Testa att ladda om.</p>";
+                return;
+            }
+
+            moviesToShow.forEach(m => {
+                const time = new Date(m.startTime).toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                card.onclick = () => openModal(m);
+                card.innerHTML = `
+                    ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                    <img class="poster" src="${m.image || 'https://via.placeholder.com/150x225?text=Ingen+Bild'}" loading="lazy">
+                    <div class="info">
+                        <div class="title">${m.title}</div>
+                        <div class="meta">${m.channel} • ${time} ${currentTab === 'history' ? '<br>'+m.date : ''}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            document.getElementById('status').innerText = "";
+        }
+
+        // 4. Modal-funktioner
+        function openModal(m) {
+            document.getElementById('modalTitle').innerText = m.title;
+            document.getElementById('modalPoster').src = m.image || '';
+            document.getElementById('modalDesc').innerText = m.desc || "Ingen beskrivning tillgänglig.";
+            document.getElementById('modalMeta').innerText = `${m.channel} | Sändes: ${new Date(m.startTime).toLocaleString('sv-SE')}`;
+            document.getElementById('modalImdb').href = m.imdbUrl || '#';
+            document.getElementById('modalImdb').style.display = m.imdbUrl ? 'block' : 'none';
+            document.getElementById('movieModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('movieModal').style.display = 'none'; }
+
+        // 5. Flik-byte
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
+
+        // 6. Städa gammalt skräp (10 dagar)
+        function cleanupOldHistory() {
+            const tenDaysAgo = new Date();
+            tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+            
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('movies_')) {
+                    const datePart = key.split('_')[1];
+                    if (new Date(datePart) < tenDaysAgo) localStorage.removeItem(key);
+                }
             });
         }
 
-        loadAllChannels();
+        init();
     </script>
 </body>
 </html>

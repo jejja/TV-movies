@@ -27,34 +27,43 @@ jobs:
           for CH in "${CHANNELS[@]}"; do
             echo "====== Hämtar $CH ======"
             
-            # API-länken vi egentligen vill nå
             TARGET_URL="https://web-api.tv.nu/channels/${CH}/schedule?date=$DATE&fullDay=true"
-            
-            # Gör om länken så den är säker att skicka in i en proxy (URL Encoding)
             ENCODED_URL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$TARGET_URL', safe=''))")
+            SUCCESS=false
             
-            # FÖRSÖK 1: Använd AllOrigins som sköld
-            curl -s -L -o "data/${CH}.json" "https://api.allorigins.win/raw?url=${ENCODED_URL}"
-            
-            # Kolla om filen innehåller ordet 'broadcasts' (då vet vi att det är en äkta tv-tablå)
-            if ! grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
-              echo "Blockerad av Cloudflare. Byter till reserv-proxy (corsproxy.io)..."
-              
-              # FÖRSÖK 2: Om AllOrigins misslyckas, kör Corsproxy
-              curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://corsproxy.io/?${ENCODED_URL}"
-              
-              if ! grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
-                echo "Misslyckades helt. Båda proxyservrarna blockade. Tar bort tom fil."
-                rm -f "data/${CH}.json"
-              else
-                echo "Lyckades via Corsproxy!"
-              fi
+            # FÖRSÖK 1: Corsproxy
+            curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://corsproxy.io/?${ENCODED_URL}"
+            if grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
+              echo "Lyckades via Corsproxy!"
+              SUCCESS=true
             else
-              echo "Lyckades via AllOrigins!"
+              echo "Corsproxy blockade. Byter till AllOrigins..."
+              
+              # FÖRSÖK 2: AllOrigins
+              curl -s -L -o "data/${CH}.json" "https://api.allorigins.win/raw?url=${ENCODED_URL}"
+              if grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
+                echo "Lyckades via AllOrigins!"
+                SUCCESS=true
+              else
+                echo "AllOrigins blockade. Byter till CodeTabs..."
+                
+                # FÖRSÖK 3: CodeTabs (Kräver inte URL-encoding på samma sätt)
+                curl -A "$AGENT" -s -L -o "data/${CH}.json" "https://api.codetabs.com/v1/proxy/?quest=${TARGET_URL}"
+                if grep -q '"broadcasts"' "data/${CH}.json" 2>/dev/null; then
+                  echo "Lyckades via CodeTabs!"
+                  SUCCESS=true
+                fi
+              fi
             fi
             
-            # Vi väntar 5 sekunder innan vi skickar proxyn på nästa kanal
-            sleep 5
+            if [ "$SUCCESS" = false ]; then
+              echo "Misslyckades helt. Alla tre proxyservrar blockade. Tar bort tom fil."
+              rm -f "data/${CH}.json"
+            fi
+            
+            # Lång paus så vi inte blir bannade av våra egna gratisservrar
+            echo "Väntar 25 sekunder på att servrarna ska vila..."
+            sleep 25
           done
 
       - name: Spara filer till GitHub
@@ -62,6 +71,6 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
-          git commit -m "Automatisk uppdatering av TV-filmer via proxy" || true
+          git commit -m "Automatisk uppdatering av TV-filmer" || true
           git pull origin main --rebase
           git push origin HEAD:main

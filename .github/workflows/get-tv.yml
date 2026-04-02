@@ -2,14 +2,14 @@ name: Hämta TV-tablå
 
 on:
   schedule:
-    - cron: '0 2 * * *' # Körs automatiskt kl 02:00 varje natt
-  workflow_dispatch: # Gör att vi kan klicka på en knapp för att köra den direkt
+    - cron: '0 2 * * *' # Körs kl 02:00 varje natt
+  workflow_dispatch: # Knappen för att köra manuellt
 
 jobs:
   fetch-data:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Ger scriptet tillåtelse att spara filer i ditt repo
+      contents: write
     steps:
       - name: Kolla ut koden
         uses: actions/checkout@v4
@@ -18,11 +18,19 @@ jobs:
         run: |
           DATE=$(date +%Y-%m-%d)
           mkdir -p data
-          curl -s -o data/svt1.xml "http://xmltv.xmltv.se/svt1.svt.se_$DATE.xml"
-          curl -s -o data/svt2.xml "http://xmltv.xmltv.se/svt2.svt.se_$DATE.xml"
-          curl -s -o data/tv3.xml "http://xmltv.xmltv.se/tv3.se_$DATE.xml"
-          curl -s -o data/tv4.xml "http://xmltv.xmltv.se/tv4.se_$DATE.xml"
-          curl -s -o data/kanal5.xml "http://xmltv.xmltv.se/kanal5.se_$DATE.xml"
+          
+          # Vi sätter upp primär domän och en backup-domän
+          URL_1="http://xmltv.tv.swedb.se"
+          URL_2="http://xmltv.se"
+          
+          # Flaggor: -f (kasta fel direkt om 404/500), -s (tyst), -L (följ omdirigeringar), -o (spara till fil)
+          # Om URL_1 misslyckas testar den URL_2. Om båda misslyckas tvingar "|| true" scriptet att fortsätta ändå.
+          
+          curl -f -s -L -o data/svt1.xml "$URL_1/svt1.svt.se_$DATE.xml" || curl -f -s -L -o data/svt1.xml "$URL_2/svt1.svt.se_$DATE.xml" || true
+          curl -f -s -L -o data/svt2.xml "$URL_1/svt2.svt.se_$DATE.xml" || curl -f -s -L -o data/svt2.xml "$URL_2/svt2.svt.se_$DATE.xml" || true
+          curl -f -s -L -o data/tv3.xml "$URL_1/tv3.se_$DATE.xml" || curl -f -s -L -o data/tv3.xml "$URL_2/tv3.se_$DATE.xml" || true
+          curl -f -s -L -o data/tv4.xml "$URL_1/tv4.se_$DATE.xml" || curl -f -s -L -o data/tv4.xml "$URL_2/tv4.se_$DATE.xml" || true
+          curl -f -s -L -o data/kanal5.xml "$URL_1/kanal5.se_$DATE.xml" || curl -f -s -L -o data/kanal5.xml "$URL_2/kanal5.se_$DATE.xml" || true
 
       - name: Spara filerna i repot
         run: |

@@ -3,104 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagens TV-tablå (TVmaze)</title>
+    <title>Dagens TV-tablå (Tv.nu)</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
         .channel { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .channel h2 { margin-top: 0; color: #d32f2f; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .channel h2 { margin-top: 0; color: #1e88e5; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .program { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; }
         .program:last-child { border-bottom: none; }
         .time { font-weight: bold; width: 60px; flex-shrink: 0; color: #555; }
         .title { flex-grow: 1; }
-        .error { color: #888; font-style: italic; }
+        .loading { font-style: italic; color: #666; }
+        .error { color: #d32f2f; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Svensk TV-tablå (Idag)</h1>
-        <div id="guide">Laddar tablå från TVmaze...</div>
+        <div id="guide"></div>
     </div>
 
     <script>
-        // Vi lägger till Play-tjänster i listan också!
-        const wantedChannels = ['SVT1', 'SVT2', 'SVT Play', 'TV3', 'TV4', 'TV4 Play', 'Kanal 5'];
+        // Kanal-id:n (slugs) exakt så som tv.nu namnger dem i sitt system
+        const channels = [
+            { slug: 'svt1', name: 'SVT 1' },
+            { slug: 'svt2', name: 'SVT 2' },
+            { slug: 'tv3', name: 'TV3' },
+            { slug: 'tv4', name: 'TV4' },
+            { slug: 'kanal-5', name: 'Kanal 5' }
+        ];
 
-        async function fetchGuide() {
-            const guideDiv = document.getElementById('guide');
+        // Dagens datum (ÅÅÅÅ-MM-DD)
+        const today = new Date();
+        const dateStr = today.getFullYear() + '-' + 
+                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(today.getDate()).padStart(2, '0');
+
+        const guideDiv = document.getElementById('guide');
+
+        // Smart funktion: Leta upp "broadcasts"-arrayen oavsett var i JSON-trädet Tv.nu gömmer den
+        function findBroadcasts(obj) {
+            if (obj && obj.broadcasts && Array.isArray(obj.broadcasts)) return obj.broadcasts;
+            for (let key in obj) {
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    let result = findBroadcasts(obj[key]);
+                    if (result.length > 0) return result;
+                }
+            }
+            return [];
+        }
+
+        async function fetchChannel(channel) {
+            const channelDiv = document.createElement('div');
+            channelDiv.className = 'channel';
+            channelDiv.innerHTML = `<h2>${channel.name}</h2><div class="loading">Hämtar tablå från Tv.nu...</div>`;
+            guideDiv.appendChild(channelDiv);
+
+            // Mål-API hos Tv.nu
+            const targetUrl = `https://web-api.tv.nu/channels/${channel.slug}/schedule?date=${dateStr}&fullDay=true`;
             
+            // Proxy för att lura webbläsarens inbyggda spärrar (CORS)
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
             try {
-                // Hämta hela dagens tablå för Sverige (SE)
-                const response = await fetch('https://api.tvmaze.com/schedule?country=SE');
-                if (!response.ok) throw new Error("Kunde inte hämta data från TVmaze");
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error("Kunde inte hämta data. (Blockerad av proxy/tv.nu)");
                 
-                const data = await response.json();
+                const jsonData = await response.json();
                 
-                // Förbered vår data-struktur
-                const channelsData = {};
-                wantedChannels.forEach(ch => channelsData[ch] = []);
-
-                // Skapa en smart, "tvättad" söklista (små bokstäver, inga mellanslag)
-                // Resultat: ['svt1', 'svt2', 'svtplay', 'tv3', 'tv4', 'tv4play', 'kanal5']
-                const cleanWanted = wantedChannels.map(c => c.toLowerCase().replace(/\s/g, ''));
-
-                data.forEach(item => {
-                    // 1. Försök hitta namnet på kanalen, kolla både 'network' och 'webChannel'
-                    const rawName = (item.show.network ? item.show.network.name : null) 
-                                 || (item.show.webChannel ? item.show.webChannel.name : null);
-
-                    if (rawName) {
-                        // 2. Tvätta kanalnamnet vi fick från API:et på samma sätt
-                        const cleanRaw = rawName.toLowerCase().replace(/\s/g, '');
-                        
-                        // 3. Kolla om det tvättade namnet finns i vår söklista
-                        const index = cleanWanted.indexOf(cleanRaw);
-                        
-                        if (index !== -1) {
-                            // Vi fick en träff! Hämta originalnamnet från vår egen lista (t.ex. "Kanal 5")
-                            const correctName = wantedChannels[index];
-                            
-                            channelsData[correctName].push({
-                                time: item.airtime || "Tid saknas",
-                                title: item.show.name
-                            });
+                // Använd vår smarta sökfunktion för att hitta listan på program
+                const broadcasts = findBroadcasts(jsonData);
+                
+                let html = `<h2>${channel.name}</h2>`;
+                
+                if (broadcasts.length === 0) {
+                    html += `<p class="error">Ingen tablå hittades just nu.</p>`;
+                } else {
+                    broadcasts.forEach(prog => {
+                        // Tv.nu svarar med en "Timestamp" (millisekunder eller sekunder), vi gör om det till klockslag!
+                        let dateObj;
+                        if (prog.startTime.toString().length === 10) {
+                            dateObj = new Date(prog.startTime * 1000); // Om sekunder
+                        } else {
+                            dateObj = new Date(prog.startTime); // Om millisekunder
                         }
-                    }
-                });
-
-                // Töm "Laddar"-texten
-                guideDiv.innerHTML = '';
-
-                // Skriv ut varje kanal
-                wantedChannels.forEach(channelName => {
-                    const programs = channelsData[channelName];
-                    let html = `<div class="channel"><h2>${channelName}</h2>`;
-                    
-                    if (programs.length === 0) {
-                        html += `<p class="error">Inga program hittades idag.</p>`;
-                    } else {
-                        // Sortera på tid så det ligger i rätt kronologisk ordning
-                        programs.sort((a, b) => a.time.localeCompare(b.time));
                         
-                        programs.forEach(prog => {
-                            html += `
-                                <div class="program">
-                                    <span class="time">${prog.time}</span>
-                                    <span class="title">${prog.title}</span>
-                                </div>
-                            `;
-                        });
-                    }
-                    html += `</div>`;
-                    guideDiv.innerHTML += html;
-                });
+                        const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                        
+                        html += `
+                            <div class="program">
+                                <span class="time">${timeStr}</span>
+                                <span class="title">${prog.title || 'Okänt program'}</span>
+                            </div>
+                        `;
+                    });
+                }
+                
+                channelDiv.innerHTML = html;
 
             } catch (error) {
-                guideDiv.innerHTML = `<p style="color:red">Något gick fel: ${error.message}</p>`;
+                channelDiv.innerHTML = `<h2>${channel.name}</h2><p class="error">Gick inte att ansluta: ${error.message}</p>`;
             }
         }
 
-        fetchGuide();
+        // Ladda alla kanaler
+        channels.forEach(fetchChannel);
     </script>
 </body>
 </html>

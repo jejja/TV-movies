@@ -267,8 +267,11 @@
                 ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">`
                 : `<span class="poster-placeholder">⭐</span>`;
 
+            // Fixad säkerhet: Skyddar mot både apostrofer (') och citationstecken (") i titeln.
+            const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
             return `
-                <div class="movie-card" onclick="openModalById('${m.startTime}-${m.title.replace(/'/g, "\\'")}')">
+                <div class="movie-card" onclick="openModalById('${m.startTime}-${safeTitle}')">
                     ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
                     <div class="poster-container">${posterHTML}</div>
                     <div class="info">

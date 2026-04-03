@@ -2,22 +2,49 @@ const fs = require('fs');
 const zlib = require('zlib');
 
 const TMDB_KEY = process.env.TMDB_API_KEY;
+const OMDB_KEY = process.env.OMDB_API_KEY; // Hämtar din nya nyckel!
 
-async function getTMDBInfo(title) {
+async function getMovieInfo(title) {
     if (!TMDB_KEY) return null;
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=sv-SE&page=1`);
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-            const movie = data.results[0];
+        // 1. Sök på TMDB för att få affisch och svensk beskrivning
+        const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=sv-SE&page=1`);
+        const tmdbSearchData = await tmdbSearchRes.json();
+        
+        if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
+            const movie = tmdbSearchData.results[0];
+            let imdbRating = null;
+            let imdbId = null;
+
+            // 2. Hämta filmens exakta IMDb-ID från TMDB
+            const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}`);
+            const tmdbDetailsData = await tmdbDetailsRes.json();
+            imdbId = tmdbDetailsData.imdb_id;
+
+            // 3. Om vi har ett IMDb-ID, fråga OMDb efter det exakta IMDb-betyget!
+            if (imdbId && OMDB_KEY) {
+                const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
+                const omdbData = await omdbRes.json();
+                
+                if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") {
+                    imdbRating = omdbData.imdbRating;
+                }
+            }
+
+            // Fallback: Skulle OMDb misslyckas, tar vi TMDB-betyget i reserv.
+            const finalRating = imdbRating || (movie.vote_average ? movie.vote_average.toFixed(1) : null);
+
             return {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
                 desc: movie.overview || null,
-                rating: movie.vote_average ? movie.vote_average.toFixed(1) : null,
-                imdbUrl: `https://www.themoviedb.org/movie/${movie.id}`
+                rating: finalRating,
+                // Skicka nu användaren till riktiga IMDb istället för TMDB!
+                imdbUrl: imdbId ? `https://www.imdb.com/title/${imdbId}/` : `https://www.themoviedb.org/movie/${movie.id}`
             };
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error(`Fel vid informationshämtning för ${title}:`, e.message);
+    }
     return null;
 }
 
@@ -59,7 +86,6 @@ async function run() {
         const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie).*?<\/category>/);
         
         if (isMovie) {
-            // NYTT: Nu hämtar vi även 'stop'-tiden från EPG-filen!
             const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
             const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
             const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
@@ -81,7 +107,6 @@ async function run() {
                 if (startMatch[7]) offset = startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5);
                 const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
                 
-                // Räkna ut stopptiden
                 let endTimeMs = null;
                 if (stopMatch) {
                     const stopDate = `${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}`;
@@ -94,27 +119,37 @@ async function run() {
                 let desc = descMatch ? descMatch[1].replace(/&amp;/g, '&') : "Ingen beskrivning.";
 
                 if (!moviesToday.find(m => m.title === title && m.channel === cleanChannel)) {
-                    const tmdbData = await getTMDBInfo(title);
+                    // Skicka till vår nya kombinerade sökfunktion!
+                    const movieData = await getMovieInfo(title);
+                    
                     moviesToday.push({
                         title: title,
                         channel: cleanChannel,
                         startTime: new Date(startTime).getTime(),
-                        endTime: endTimeMs, // Skicka med sluttiden
-                        image: tmdbData ? tmdbData.poster : null,
-                        imdbRate: tmdbData ? tmdbData.rating : null,
-                        desc: (tmdbData && tmdbData.desc) ? tmdbData.desc : desc,
-                        imdbUrl: tmdbData ? tmdbData.imdbUrl : null,
+                        endTime: endTimeMs,
+                        image: movieData ? movieData.poster : null,
+                        imdbRate: movieData ? movieData.rating : null,
+                        desc: (movieData && movieData.desc) ? movieData.desc : desc,
+                        imdbUrl: movieData ? movieData.imdbUrl : null,
                         date: today
                     });
-                    await new Promise(r => setTimeout(r, 200));
+                    
+                    // Liten paus så vi inte stressar sökmotorerna
+                    await new Promise(r => setTimeout(r, 250));
                 }
             }
         }
     }
 
     for (const newMovie of moviesToday) {
-        const exists = allMovies.find(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
-        if (!exists) allMovies.push(newMovie);
+        // En lite smartare uppdatering av arkivet: Om vi hämtar en film på nytt idag,
+        // och den redan finns i historiken (för idag), skriv över den så vi får nya betyget.
+        const existingIndex = allMovies.findIndex(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
+        if (existingIndex !== -1) {
+            allMovies[existingIndex] = newMovie;
+        } else {
+            allMovies.push(newMovie);
+        }
     }
 
     const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
@@ -123,7 +158,7 @@ async function run() {
 
     allMovies.sort((a, b) => a.startTime - b.startTime);
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
-    console.log(`\n🎉 Klart! Arkivet innehåller nu ${allMovies.length} filmer.`);
+    console.log(`\n🎉 Klart! Arkivet innehåller nu ${allMovies.length} filmer (med riktiga IMDb-betyg!).`);
 }
 
 run();

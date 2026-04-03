@@ -51,97 +51,113 @@ async function run() {
         const buffer = await res.arrayBuffer();
         xml = zlib.gunzipSync(Buffer.from(buffer)).toString('utf-8');
     } catch (e) {
-        console.error("Fel:", e.message);
+        console.error("Fel vid nedladdning:", e.message);
         return;
     }
 
     const programmes = xml.split('<programme');
-    console.log(`Analyserar ${programmes.length} program för datum ${today}...`);
+    console.log(`Analyserar ${programmes.length} program för ${today}...`);
 
-    // --- MAPPNING: Koppla EPG-filens konstiga ID:n till snygga namn ---
-    const channelMap = {
-        "[SVT1HD].SVT1.HD.se": "SVT1",
-        "[SVT2HD].SVT2.HD.se": "SVT2",
-        "[TV3HD].TV3.HD.se": "TV3",
-        "[TV4HD].TV4.HD.se": "TV4",
-        "[KANAL5HD].Kanal5.HD.se": "KANAL 5",
-        "[TV6HD].TV6.HD.se": "TV6",
-        "[SJUANHD].Sjuan.HD.se": "SJUAN",
-        "[TV8HD].TV8.HD.se": "TV8",
-        "[KANAL9HD].Kanal9.HD.se": "KANAL 9",
-        "[TV10HD].TV10.HD.se": "TV10",
-        "[KANAL11HD].Kanal11.HD.se": "KANAL 11",
-        "[TV12HD].TV12.HD.se": "TV12"
-    };
+    const channelsToFind = [
+        { key: "svt1", name: "SVT1" },
+        { key: "svt2", name: "SVT2" },
+        { key: "tv3", name: "TV3" },
+        { key: "tv4", name: "TV4" },
+        { key: "kanal5", name: "KANAL 5" },
+        { key: "tv6", name: "TV6" },
+        { key: "sjuan", name: "SJUAN" },
+        { key: "tv8", name: "TV8" },
+        { key: "kanal9", name: "KANAL 9" },
+        { key: "tv10", name: "TV10" },
+        { key: "kanal11", name: "KANAL 11" },
+        { key: "tv12", name: "TV12" }
+    ];
 
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
+        
+        // 1. Kanalsökning
         const channelMatch = prog.match(/channel="(.*?)"/);
         if (!channelMatch) continue;
+        const rawId = channelMatch[1].toLowerCase();
         
-        const rawChannelId = channelMatch[1];
-        const cleanChannel = channelMap[rawChannelId];
+        // Skippa play/streaming/extra-kanaler
+        if (rawId.includes("play") || rawId.includes("extra") || rawId.includes("stars")) continue;
 
-        // Om kanalen inte finns i vår karta (t.ex. TV4 Play), hoppa över den
-        if (!cleanChannel) continue;
+        const foundChannel = channelsToFind.find(c => rawId.includes(c.key));
+        if (!foundChannel) continue;
 
-        const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie|[Sp]elfilm).*?<\/category>/i);
-        if (isMovie) {
-            const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
-            if (!startMatch) continue;
+        // 2. Breddad kategorisökning (Action, Drama, Thriller etc.)
+        const categoryMatch = prog.match(/<category[^>]*>(.*?)<\/category>/i);
+        const category = categoryMatch ? categoryMatch[1].toLowerCase() : "";
+        const isMovieCategory = category.includes("film") || 
+                               category.includes("movie") || 
+                               category.includes("action") || 
+                               category.includes("drama") || 
+                               category.includes("thriller") || 
+                               category.includes("komedi") || 
+                               category.includes("comedy") || 
+                               category.includes("sci-fi");
 
-            const progDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
-            if (progDate !== today) continue;
+        if (!isMovieCategory) continue;
 
-            const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
-            const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
-            const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
+        // 3. Kolla datum
+        const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
+        if (!startMatch) continue;
+        const progDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
+        if (progDate !== today) continue;
+
+        const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
+        if (!titleMatch) continue;
+        const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+
+        const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
+        const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
+        
+        let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
+        const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
+        
+        let endTimeMs = null;
+        if (stopMatch) {
+            let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
+            endTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
+        }
+
+        // Dublettkontroll för dagen
+        if (!moviesToday.find(m => m.title === title && m.channel === foundChannel.name)) {
+            console.log(`🎬 Hittade: ${title} på ${foundChannel.name}`);
+            const movieData = await getMovieInfo(title);
             
-            if (!titleMatch) continue;
-            const title = titleMatch[1].replace(/&amp;/g, '&');
-
-            let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
-            const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
-            
-            let endTimeMs = null;
-            if (stopMatch) {
-                let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
-                endTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
-            }
-
-            if (!moviesToday.find(m => m.title === title && m.channel === cleanChannel)) {
-                console.log(`🎬 MATCH! ${title} på ${cleanChannel}`);
-                const movieData = await getMovieInfo(title);
-                
-                moviesToday.push({
-                    title: title,
-                    channel: cleanChannel,
-                    originalChannel: rawChannelId, 
-                    startTime: new Date(startTime).getTime(),
-                    endTime: endTimeMs,
-                    image: movieData ? movieData.poster : null,
-                    imdbRate: movieData ? movieData.rating : null,
-                    desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : ""),
-                    imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
-                    date: today
-                });
-                await new Promise(r => setTimeout(r, 250));
-            }
+            moviesToday.push({
+                title: title,
+                channel: foundChannel.name,
+                originalChannel: rawId, 
+                startTime: new Date(startTime).getTime(),
+                endTime: endTimeMs,
+                image: movieData ? movieData.poster : null,
+                imdbRate: movieData ? movieData.rating : null,
+                desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
+                imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
+                date: today
+            });
+            await new Promise(r => setTimeout(r, 200));
         }
     }
 
+    // Uppdatera arkivet
     for (const newMovie of moviesToday) {
         const idx = allMovies.findIndex(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
         if (idx !== -1) allMovies[idx] = newMovie;
         else allMovies.push(newMovie);
     }
 
+    // Rensa gamla filmer (7 dagar)
     const now = Date.now();
     allMovies = allMovies.filter(m => (now - m.startTime) <= 7 * 24 * 60 * 60 * 1000);
     allMovies.sort((a, b) => a.startTime - b.startTime);
     
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
-    console.log(`\n✅ Klar! Sparade ${moviesToday.length} filmer för idag.`);
+    console.log(`\n✅ Klar! Sparade ${moviesToday.length} filmer.`);
 }
 
 run();

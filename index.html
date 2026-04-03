@@ -183,14 +183,13 @@
                 statusEl.innerText = `Hämtar ${ch}... (${allMovies.length} filmer hittade)`;
                 
                 try {
-                    const targetUrl = `https://web-api.tv.nu/channels/${ch}/schedule?date=${dateStr}&fullDay=true`;
-                    // Bytt proxy till corsproxy.io
-                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+                    // Vi anropar vår Netlify-proxy istället för direkt till tv.nu
+                    const proxyUrl = `/api/channels/${ch}/schedule?date=${dateStr}&fullDay=true`;
                     
                     const response = await fetch(proxyUrl);
                     
                     if (!response.ok) {
-                        console.error(`Fel från proxy/tv.nu på kanal ${ch}: Status ${response.status}`);
+                        console.error(`Fel på kanal ${ch}: Status ${response.status}`);
                         throw new Error("HTTP " + response.status);
                     }
                     
@@ -215,7 +214,7 @@
                     console.error(`Kunde inte hämta ${ch}:`, e);
                 }
                 
-                // Lite längre paus för att undvika rate-limiting (300ms istället för 150ms)
+                // Lite längre paus för säkerhets skull
                 await new Promise(r => setTimeout(r, 300));
             }
 

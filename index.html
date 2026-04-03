@@ -47,6 +47,7 @@
             font-weight: 600; 
             font-size: 14px;
             cursor: pointer; 
+            transition: all 0.2s;
         }
         .tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3); }
 
@@ -98,6 +99,7 @@
             font-size: 11px; 
             font-weight: 800; 
             z-index: 2; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
         }
 
         .info { padding: 12px; }
@@ -111,7 +113,7 @@
             -webkit-box-orient: vertical; 
             overflow: hidden; 
         }
-        .meta { font-size: 12px; color: var(--gray); }
+        .meta { font-size: 12px; color: var(--gray); font-weight: 400; }
 
         /* Modal */
         .modal { 
@@ -123,6 +125,7 @@
             justify-content: center; 
             align-items: center; 
             padding: 20px; 
+            box-sizing: border-box; 
             backdrop-filter: blur(5px);
         }
         .modal-content { 
@@ -151,7 +154,7 @@
         .modal-rating { color: var(--imdb); font-weight: 800; font-size: 20px; }
         .modal-desc { color: #d1d5db; line-height: 1.6; font-size: 15px; margin: 18px 0; }
 
-        .footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 11px; }
+        .footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 11px; line-height: 1.8; }
         .footer a { color: white; text-decoration: none; font-weight: 600; }
 
         .empty-channel { grid-column: 1 / -1; padding: 30px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 12px; text-align: center; color: var(--gray); font-size: 13px; }
@@ -204,6 +207,8 @@
             const dateObj = new Date(m.startTime);
             const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
+            
+            // Meta-text beroende på flik
             const metaHTML = currentTab === 'today' ? `Idag ${timeStr}` : `${dateStr} • ${m.channel}`;
 
             const posterHTML = m.image 
@@ -225,6 +230,7 @@
         function render() {
             const root = document.getElementById('movie-grid');
             root.innerHTML = "";
+            
             const todayStr = new Date().toISOString().split('T')[0];
             const startOfTodayMs = new Date(`${todayStr}T00:00:00`).getTime();
             
@@ -232,9 +238,12 @@
                 ? allMoviesData.filter(m => m.startTime >= startOfTodayMs)
                 : allMoviesData.filter(m => m.startTime < startOfTodayMs);
 
-            // Bäst på IMDb (Gräns 7.0)
+            // Bäst på IMDb (7.0+) - Visas nu på både Idag och Arkiv
             const topMovies = moviesToDisplay.filter(m => parseFloat(m.imdbRate) >= 7.0);
-            if (topMovies.length > 0 && currentTab === 'today') {
+            if (topMovies.length > 0) {
+                // Sortera efter högsta betyg först
+                topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate));
+                
                 const topSection = document.createElement('div');
                 topSection.innerHTML = `
                     <h2 class="section-title">⭐ Bäst på IMDb (7.0+)</h2>
@@ -243,11 +252,17 @@
                 root.appendChild(topSection);
             }
 
+            // Alla kanaler
             const kanaler = ["SVT1", "SVT2", "TV3", "TV4", "KANAL 5", "TV6", "SJUAN", "TV8", "KANAL 9", "TV10", "KANAL 11", "TV12"];
             kanaler.forEach(ch => {
                 const chMovies = moviesToDisplay.filter(m => m.channel === ch);
-                if (currentTab === 'history') chMovies.sort((a, b) => b.startTime - a.startTime);
-                else chMovies.sort((a, b) => a.startTime - b.startTime);
+                
+                if (currentTab === 'history') {
+                    // I arkivet vill vi se senaste filmerna först
+                    chMovies.sort((a, b) => b.startTime - a.startTime);
+                } else {
+                    chMovies.sort((a, b) => a.startTime - b.startTime);
+                }
 
                 const chSection = document.createElement('div');
                 chSection.innerHTML = `
@@ -277,8 +292,8 @@
             document.getElementById('modalGenre').innerText = m.originalCategory || 'Film';
             document.getElementById('modalPoster').src = m.image || '';
             document.getElementById('modalPoster').style.display = m.image ? 'block' : 'none';
-            document.getElementById('modalDesc').innerText = m.desc;
-            document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', hour: '2-digit', minute: '2-digit'})}`;
+            document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
+            document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}`;
             document.getElementById('modalImdb').href = m.imdbUrl || '#';
             document.getElementById('modalImdb').style.display = m.imdbUrl ? 'inline-block' : 'none';
             document.getElementById('movieModal').style.display = 'flex';

@@ -1,9 +1,8 @@
 const fs = require('fs');
 
-const CHANNELS = ["svt1", "svt2", "tv3", "tv4", "kanal-5", "tv6", "sjuan", "tv8", "kanal-9", "tv10", "kanal-11", "tv12"];
 const TMDB_KEY = process.env.TMDB_API_KEY;
 
-// 1. Funktion för att hämta snygga posters från TMDB
+// 1. Hämta info från TMDB
 async function getTMDBInfo(title) {
     if (!TMDB_KEY) return null;
     try {
@@ -13,87 +12,99 @@ async function getTMDBInfo(title) {
             const movie = data.results[0];
             return {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
-                desc: movie.overview || null
+                desc: movie.overview || null,
+                rating: movie.vote_average ? movie.vote_average.toFixed(1) : null,
+                imdbUrl: `https://www.themoviedb.org/movie/${movie.id}`
             };
         }
     } catch (e) {}
     return null;
 }
 
-// 2. Funktion för att hämta tablå från tv.nu (med inbyggd fördröjning för 429)
-async function fetchTvNu(channel, dateStr) {
-    const url = `https://web-api.tv.nu/channels/${channel}/schedule?date=${dateStr}&fullDay=true`;
-    
-    for (let i = 0; i < 3; i++) { // Försök upp till 3 gånger per kanal
-        const res = await fetch(url, {
-            headers: {
-                // Vi lurar servern att vi är en vanlig webbläsare
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-        
-        if (res.status === 429) {
-            console.log(`[429] Gick lite för snabbt! Väntar 5 sekunder och försöker igen...`);
-            await new Promise(r => setTimeout(r, 5000));
-            continue;
-        }
-        
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-    }
-    return null;
-}
-
-// 3. Huvudfunktionen som kör allt
+// 2. Huvudfunktion
 async function run() {
-    const dateStr = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     let moviesToday = [];
 
-    for (const ch of CHANNELS) {
-        console.log(`Hämtar tablå för ${ch}...`);
-        
+    // Länkar till IPTV-org:s öppna arkiv med EPG-data (Sverige)
+    const epgUrls = [
+        "https://iptv-org.github.io/epg/guides/se/tv.nu.epg.xml",
+        "https://iptv-org.github.io/epg/guides/se/tv24.se.epg.xml"
+    ];
+
+    let xml = null;
+    for (const url of epgUrls) {
+        console.log(`Testar att ladda ner EPG från: ${url}`);
         try {
-            const data = await fetchTvNu(ch, dateStr);
-            
-            if (data && data.broadcasts) {
-                const movies = data.broadcasts.filter(b => b.isMovie);
-                
-                for (const m of movies) {
-                    console.log(` -> Hittade: ${m.title}`);
-                    
-                    // Skicka titeln till TMDB för att få snyggare bilder
-                    const tmdbData = await getTMDBInfo(m.title);
-
-                    moviesToday.push({
-                        title: m.title,
-                        channel: ch.toUpperCase(),
-                        startTime: new Date(m.startTime).getTime(),
-                        // Om TMDB hittar en bild, använd den. Annars ta tv.nu:s inbyggda bild.
-                        image: (tmdbData && tmdbData.poster) ? tmdbData.poster : (m.image ? m.image.url : null),
-                        imdbRate: m.imdbRate || null,
-                        imdbUrl: m.imdbUrl || null,
-                        desc: (tmdbData && tmdbData.desc) ? tmdbData.desc : m.description,
-                        date: dateStr
-                    });
-
-                    // Mikropaus för att inte stressa TMDB:s API
-                    await new Promise(r => setTimeout(r, 300));
+            const res = await fetch(url);
+            if (res.ok) {
+                xml = await res.text();
+                if (xml.includes('<programme')) {
+                    console.log("✅ EPG-data hittad!");
+                    break;
                 }
             }
         } catch (e) {
-            console.error(`Kunde inte hämta ${ch}:`, e.message);
+            console.error("Fel:", e.message);
         }
-
-        // MAGIN: Vi väntar hela 3 sekunder innan vi går till nästa kanal. 
-        // Eftersom detta körs i bakgrunden på natten gör det inget att det tar 1-2 minuter totalt!
-        console.log(`Väntar 3 sekunder innan nästa kanal...`);
-        await new Promise(r => setTimeout(r, 3000));
     }
 
-    // Sortera filmerna efter starttid
+    if (!xml) {
+        console.error("❌ Kunde inte hämta tablån från de öppna källorna.");
+        return;
+    }
+
+    const programmes = xml.split('<programme');
+    console.log(`Söker igenom ${programmes.length} program efter filmer för dagens datum (${today})...`);
+
+    for (const prog of programmes) {
+        // Leta efter kategorier i XML-filen som indikerar att det är en film
+        if (prog.match(/<(category|genre)[^>]*>\s*(Film|Movie|Cinema)\s*<\/(category|genre)>/i)) {
+            
+            const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+            const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
+            const channelMatch = prog.match(/channel="(.*?)"/);
+            const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
+
+            if (startMatch && titleMatch && channelMatch) {
+                const progDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
+                
+                // Hoppa över filmer som inte sänds idag
+                if (progDate !== today) continue;
+
+                let title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                
+                // Snygga till kanalnamnet (t.ex. "svt1.svt.se" -> "SVT1")
+                let channel = channelMatch[1].split('.')[0].toUpperCase();
+                
+                const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}+02:00`;
+                let desc = descMatch ? descMatch[1].replace(/&amp;/g, '&') : "Ingen beskrivning.";
+
+                // Undvik dubbletter
+                if (!moviesToday.find(m => m.title === title && m.channel === channel)) {
+                    console.log(` 🎬 Hittade: ${title} på ${channel}`);
+                    
+                    const tmdbData = await getTMDBInfo(title);
+
+                    moviesToday.push({
+                        title: title,
+                        channel: channel,
+                        startTime: new Date(startTime).getTime(),
+                        image: tmdbData ? tmdbData.poster : null,
+                        imdbRate: tmdbData ? tmdbData.rating : null,
+                        desc: (tmdbData && tmdbData.desc) ? tmdbData.desc : desc,
+                        imdbUrl: tmdbData ? tmdbData.imdbUrl : null,
+                        date: today
+                    });
+
+                    // Mikropaus för TMDB
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+        }
+    }
+
     moviesToday.sort((a, b) => a.startTime - b.startTime);
-    
-    // Skapa vår statiska JSON-fil
     fs.writeFileSync('movies.json', JSON.stringify(moviesToday, null, 2));
     console.log(`\n🎉 Klart! Sparade ${moviesToday.length} filmer till movies.json`);
 }

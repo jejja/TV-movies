@@ -2,13 +2,21 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Filmguiden">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f0f0f">
+    
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍿</text></svg>">
+    
     <title>Filmguiden 🍿</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
-        /* Global box-sizing fixar att inget element råkar tryckas ut utanför skärmen (löser modal-buggen) */
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -28,7 +36,8 @@
             color: var(--text); 
             margin: 0; 
             -webkit-font-smoothing: antialiased;
-            padding-bottom: 40px;
+            padding-bottom: env(safe-area-inset-bottom, 40px); /* Respekterar iPhones hem-indikator */
+            padding-top: env(safe-area-inset-top, 0px);
         }
 
         .tabs { 
@@ -38,7 +47,7 @@
             background: rgba(15, 15, 15, 0.95); 
             backdrop-filter: blur(10px);
             z-index: 100; 
-            padding: 12px; 
+            padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px; 
             gap: 12px; 
             border-bottom: 1px solid #262626; 
         }
@@ -140,13 +149,32 @@
             overflow-y: auto; 
             border: 1px solid #333;
         }
-        .modal-body { padding: 24px; }
+        
+        /* Netflix-style Bild-Fade i Modalen */
+        .modal-hero-img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            object-position: center 25%; /* Fokuserar lite över mitten */
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            display: block;
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+        }
+
+        .modal-body { 
+            padding: 0 24px 24px 24px; 
+            position: relative;
+            margin-top: -30px; /* Drar upp texten över faden */
+        }
+        
         .close-btn { 
             position: absolute; 
             top: 15px; right: 15px; 
             font-size: 28px; color: white; 
             cursor: pointer; z-index: 10; 
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             width: 36px; height: 36px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -179,7 +207,8 @@
     <div id="movieModal" class="modal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closeModal(event)">×</span>
-            <img id="modalPoster" class="poster" style="aspect-ratio: 16/9; object-position: top;">
+            <img id="modalPoster" class="modal-hero-img">
+            
             <div class="modal-body">
                 <div id="modalGenre" class="modal-genre"></div>
                 <div class="modal-title-wrap">
@@ -205,16 +234,12 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- HÄR ÄR FUNKTIONEN FÖR RIKTIG SPELTID ---
         function getDurationText(m) {
-            // 1. Testa riktiga filmlängden från TMDB först (exkl. reklam)
             if (m.runtime && m.runtime > 0) {
                 const hours = Math.floor(m.runtime / 60);
                 const mins = m.runtime % 60;
                 return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
             }
-            
-            // 2. Fallback: Räkna ut från tablån (inkl. ev. reklam)
             if (!m.startTime || !m.endTime) return "";
             const diffMs = m.endTime - m.startTime;
             if (diffMs <= 0) return "";
@@ -228,8 +253,6 @@
             const dateObj = new Date(m.startTime);
             const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
-            
-            // Hämtar formatet 2h 31m via nya funktionen
             const durationStr = getDurationText(m);
             
             const metaHTML = currentTab === 'today' 
@@ -262,7 +285,6 @@
                 ? allMoviesData.filter(m => m.startTime >= startOfTodayMs)
                 : allMoviesData.filter(m => m.startTime < startOfTodayMs);
 
-            // Bäst på IMDb (7.0+)
             const topMovies = moviesToDisplay.filter(m => parseFloat(m.imdbRate) >= 7.0);
             if (topMovies.length > 0) {
                 topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate));
@@ -321,7 +343,6 @@
             document.getElementById('modalPoster').style.display = m.image ? 'block' : 'none';
             document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
             
-            // Speltid även i modalen
             const durationStr = getDurationText(m);
             const dateStrModal = new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
             document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${dateStrModal} • ${durationStr}`;
@@ -330,28 +351,25 @@
             document.getElementById('modalImdb').style.display = m.imdbUrl ? 'inline-block' : 'none';
             
             document.getElementById('movieModal').style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // Scroll-lås för bakgrunden
+            document.body.style.overflow = 'hidden'; 
             
-            // Skapar ett state i webbläsarhistoriken för att back-knappen ska fungera
             history.pushState({ modalOpen: true }, "");
         }
 
-        // Stänger modalen och backar i historiken om vi inte använder tillbaka-knappen
         function closeModal(event, fromPopState = false) { 
             if (event) event.stopPropagation();
             
             const modal = document.getElementById('movieModal');
             if (modal.style.display === 'flex') {
                 modal.style.display = 'none'; 
-                document.body.style.overflow = 'auto'; // Släpp scroll-låset
+                document.body.style.overflow = 'auto'; 
                 
                 if (!fromPopState) {
-                    history.back(); // Ta bort state ur historiken om vi kryssade manuellt
+                    history.back(); 
                 }
             }
         }
 
-        // Lyssna på telefonens bakåtknapp/swipe gesture
         window.addEventListener('popstate', () => {
             closeModal(null, true);
         });

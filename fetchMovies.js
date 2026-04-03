@@ -51,55 +51,50 @@ async function run() {
         const buffer = await res.arrayBuffer();
         xml = zlib.gunzipSync(Buffer.from(buffer)).toString('utf-8');
     } catch (e) {
-        console.error("Fel vid nedladdning:", e.message);
+        console.error("Fel:", e.message);
         return;
     }
 
     const programmes = xml.split('<programme');
     console.log(`Analyserar ${programmes.length} program för ${today}...`);
 
+    // --- UTÖKAD KANAL-LISTA ---
     const channelsToFind = [
-        { key: "svt1", name: "SVT1" },
-        { key: "svt2", name: "SVT2" },
-        { key: "tv3", name: "TV3" },
-        { key: "tv4", name: "TV4" },
-        { key: "kanal5", name: "KANAL 5" },
-        { key: "tv6", name: "TV6" },
-        { key: "sjuan", name: "SJUAN" },
-        { key: "tv8", name: "TV8" },
-        { key: "kanal9", name: "KANAL 9" },
-        { key: "tv10", name: "TV10" },
-        { key: "kanal11", name: "KANAL 11" },
-        { key: "tv12", name: "TV12" }
+        { keys: ["svt1"], name: "SVT1" },
+        { keys: ["svt2"], name: "SVT2" },
+        { keys: ["tv3"], name: "TV3" },
+        { keys: ["tv4"], name: "TV4" },
+        { keys: ["kanal5", "k5."], name: "KANAL 5" },
+        { keys: ["tv6"], name: "TV6" },
+        { keys: ["sjuan"], name: "SJUAN" },
+        { keys: ["tv8", "kanal8"], name: "TV8" },
+        { keys: ["kanal9", "k9."], name: "KANAL 9" },
+        { keys: ["tv10", "kanal10"], name: "TV10" },
+        { keys: ["kanal11", "k11."], name: "KANAL 11" },
+        { keys: ["tv12"], name: "TV12" }
     ];
 
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
         
-        // 1. Kanalsökning
+        // 1. Kolla kanal ID
         const channelMatch = prog.match(/channel="(.*?)"/);
         if (!channelMatch) continue;
         const rawId = channelMatch[1].toLowerCase();
         
-        // Skippa play/streaming/extra-kanaler
-        if (rawId.includes("play") || rawId.includes("extra") || rawId.includes("stars")) continue;
+        // Skippa play/streaming (vi kollar efter ".play" eller bara "play" utanför klamrarna)
+        if (rawId.includes("play") && !rawId.includes("hd")) continue;
 
-        const foundChannel = channelsToFind.find(c => rawId.includes(c.key));
+        const foundChannel = channelsToFind.find(c => c.keys.some(k => rawId.includes(k)));
         if (!foundChannel) continue;
 
-        // 2. Breddad kategorisökning (Action, Drama, Thriller etc.)
-        const categoryMatch = prog.match(/<category[^>]*>(.*?)<\/category>/i);
-        const category = categoryMatch ? categoryMatch[1].toLowerCase() : "";
-        const isMovieCategory = category.includes("film") || 
-                               category.includes("movie") || 
-                               category.includes("action") || 
-                               category.includes("drama") || 
-                               category.includes("thriller") || 
-                               category.includes("komedi") || 
-                               category.includes("comedy") || 
-                               category.includes("sci-fi");
-
-        if (!isMovieCategory) continue;
+        // 2. Kolla Kategori - Vi letar nu efter ALLT som liknar en film
+        const categories = [...prog.matchAll(/<category[^>]*>(.*?)<\/category>/gi)].map(m => m[1].toLowerCase());
+        const movieKeywords = ["film", "movie", "action", "drama", "thriller", "komedi", "comedy", "sci-fi", "rysare", "skräck", "romantik", "fantasy", "spelfilm"];
+        
+        const isMovie = categories.some(cat => movieKeywords.some(key => cat.includes(key)));
+        
+        if (!isMovie) continue;
 
         // 3. Kolla datum
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
@@ -123,9 +118,8 @@ async function run() {
             endTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
         }
 
-        // Dublettkontroll för dagen
-        if (!moviesToday.find(m => m.title === title && m.channel === foundChannel.name)) {
-            console.log(`🎬 Hittade: ${title} på ${foundChannel.name}`);
+        if (!moviesToday.find(m => m.title === title && m.channel === foundChannel.name && m.startTime === new Date(startTime).getTime())) {
+            console.log(`🎬 HITTAD: ${title} på ${foundChannel.name} (${rawId})`);
             const movieData = await getMovieInfo(title);
             
             moviesToday.push({
@@ -144,14 +138,12 @@ async function run() {
         }
     }
 
-    // Uppdatera arkivet
     for (const newMovie of moviesToday) {
         const idx = allMovies.findIndex(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
         if (idx !== -1) allMovies[idx] = newMovie;
         else allMovies.push(newMovie);
     }
 
-    // Rensa gamla filmer (7 dagar)
     const now = Date.now();
     allMovies = allMovies.filter(m => (now - m.startTime) <= 7 * 24 * 60 * 60 * 1000);
     allMovies.sort((a, b) => a.startTime - b.startTime);

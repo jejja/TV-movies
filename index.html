@@ -27,7 +27,6 @@
             padding-bottom: 50px;
         }
 
-        /* Flikar */
         .tabs {
             display: flex;
             position: sticky;
@@ -55,17 +54,6 @@
             color: white;
         }
 
-        .refresh-btn {
-            background: #333;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 0 15px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        /* Grid & Puffar */
         .container {
             padding: 15px;
             display: grid;
@@ -96,7 +84,6 @@
         .meta { font-size: 11px; color: var(--gray); }
         .imdb-badge { position: absolute; top: 5px; right: 5px; background: #f5c518; color: black; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 2; }
 
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -122,7 +109,6 @@
         .modal-body { padding: 20px; }
         .close-btn { position: absolute; top: 15px; right: 15px; font-size: 24px; color: white; cursor: pointer; z-index: 10; text-shadow: 0 0 5px black; }
         .modal-desc { color: var(--gray); line-height: 1.5; font-size: 14px; margin: 15px 0; }
-
         .status { text-align: center; padding: 20px; color: var(--gray); font-size: 14px; font-weight: bold; }
     </style>
 </head>
@@ -131,10 +117,9 @@
     <div class="tabs">
         <button class="tab active" onclick="switchTab('today')">Filmer Idag</button>
         <button class="tab" onclick="switchTab('history')">Historik</button>
-        <button class="refresh-btn" onclick="forceRefresh()">↻ Uppdatera</button>
     </div>
 
-    <div id="status" class="status">Startar...</div>
+    <div id="status" class="status">Hämtar filmer...</div>
     <div id="movie-grid" class="container"></div>
 
     <div id="movieModal" class="modal" onclick="closeModal(event)">
@@ -145,99 +130,35 @@
                 <h2 id="modalTitle"></h2>
                 <div id="modalMeta" class="meta"></div>
                 <p id="modalDesc" class="modal-desc"></p>
-                <a id="modalImdb" target="_blank" style="color: #f5c518; text-decoration: none; font-weight: bold; display: inline-block; padding-top: 10px;">Visa på IMDb →</a>
+                <a id="modalImdb" target="_blank" style="color: #f5c518; text-decoration: none; font-weight: bold; display: inline-block; padding-top: 10px;">Läs mer →</a>
             </div>
         </div>
     </div>
 
     <script>
-        const CHANNELS = ["svt1", "svt2", "tv3", "tv4", "kanal-5", "tv6", "sjuan", "tv8", "kanal-9", "tv10", "kanal-11", "tv12", "v-sport-1", "kunskapskanalen", "svt-barn"];
         let currentTab = 'today';
+        const todayStr = new Date().toISOString().split('T')[0];
 
         async function init() {
             await cleanupOldHistory();
-            await fetchDayData(new Date()); 
+            await fetchMovies(); 
             render();
         }
 
-        function forceRefresh() {
-            const dateStr = new Date().toISOString().split('T')[0];
-            localStorage.removeItem(`movies_${dateStr}`);
-            document.getElementById('movie-grid').innerHTML = "";
-            init();
-        }
-
-        async function fetchDayData(date) {
-            const dateStr = date.toISOString().split('T')[0];
-            
-            const cached = localStorage.getItem(`movies_${dateStr}`);
-            if (cached && cached !== "[]") {
-                document.getElementById('status').innerText = "";
-                return;
-            }
-
-            const statusEl = document.getElementById('status');
-            let allMovies = [];
-
-            for (const ch of CHANNELS) {
-                statusEl.innerText = `Hämtar ${ch}... (${allMovies.length} filmer hittade)`;
-                
-                let success = false;
-                let attempts = 0;
-
-                while (!success && attempts < 2) {
-                    try {
-                        attempts++;
-                        const proxyUrl = `/api/channels/${ch}/schedule?date=${dateStr}&fullDay=true`;
-                        const response = await fetch(proxyUrl);
-                        
-                        // Om vi får "Too Many Requests", vänta 3 sekunder och försök igen
-                        if (response.status === 429) {
-                            console.warn(`Väntar lite... för många anrop mot ${ch}.`);
-                            statusEl.innerText = `Pausar (för många anrop)... hämtar ${ch} igen.`;
-                            await new Promise(r => setTimeout(r, 3000));
-                            continue;
-                        }
-                        
-                        if (!response.ok) {
-                            console.error(`Fel på kanal ${ch}: Status ${response.status}`);
-                            throw new Error("HTTP " + response.status);
-                        }
-                        
-                        const data = await response.json();
-
-                        if (data.broadcasts) {
-                            const movies = data.broadcasts
-                                .filter(b => b.isMovie)
-                                .map(b => ({
-                                    title: b.title,
-                                    startTime: b.startTime,
-                                    channel: ch.toUpperCase(),
-                                    desc: b.description,
-                                    imdbRate: b.imdbRate,
-                                    imdbUrl: b.imdbUrl,
-                                    image: b.image ? b.image.url : null,
-                                    date: dateStr
-                                }));
-                            allMovies = [...allMovies, ...movies];
-                        }
-                        success = true; // Markera att hämtningen gick bra
-                    } catch (e) { 
-                        console.error(`Kunde inte hämta ${ch}:`, e);
-                        break; // Bryt ut ur while-loopen om det var ett annat fel än 429
+        async function fetchMovies() {
+            try {
+                // Vi hämtar den statiska json-filen som GitHub genererar!
+                const res = await fetch('movies.json?cb=' + new Date().getTime());
+                if (res.ok) {
+                    const movies = await res.json();
+                    if (movies.length > 0) {
+                        localStorage.setItem(`movies_${todayStr}`, JSON.stringify(movies));
                     }
                 }
-                
-                // Mycket längre paus mellan kanalerna för att undvika 429-fel (1200ms)
-                await new Promise(r => setTimeout(r, 1200));
+            } catch (e) {
+                console.error("Kunde inte hämta movies.json", e);
             }
-
-            if (allMovies.length > 0) {
-                localStorage.setItem(`movies_${dateStr}`, JSON.stringify(allMovies));
-                statusEl.innerText = "";
-            } else {
-                statusEl.innerText = "Kunde inte hämta några filmer. Tryck på Uppdatera.";
-            }
+            document.getElementById('status').innerText = "";
         }
 
         function render() {
@@ -246,12 +167,10 @@
             let moviesToShow = [];
 
             if (currentTab === 'today') {
-                const today = new Date().toISOString().split('T')[0];
-                moviesToShow = JSON.parse(localStorage.getItem(`movies_${today}`) || "[]");
+                moviesToShow = JSON.parse(localStorage.getItem(`movies_${todayStr}`) || "[]");
             } else {
-                const today = new Date().toISOString().split('T')[0];
                 Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('movies_') && !key.includes(today)) {
+                    if (key.startsWith('movies_') && !key.includes(todayStr)) {
                         try {
                             const data = JSON.parse(localStorage.getItem(key));
                             if(Array.isArray(data)) moviesToShow = [...moviesToShow, ...data];
@@ -262,7 +181,8 @@
             }
 
             if (moviesToShow.length === 0) {
-                grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--gray); padding-top: 20px;'>Inga filmer hittades.</p>";
+                grid.innerHTML = `<p style='grid-column: 1/-1; text-align: center; color: var(--gray); padding-top: 20px;'>
+                    Inga filmer hittades. (Kolla att din GitHub Action har körts!)</p>`;
                 return;
             }
 

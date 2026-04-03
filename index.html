@@ -182,40 +182,54 @@
             for (const ch of CHANNELS) {
                 statusEl.innerText = `Hämtar ${ch}... (${allMovies.length} filmer hittade)`;
                 
-                try {
-                    // Vi anropar vår Netlify-proxy istället för direkt till tv.nu
-                    const proxyUrl = `/api/channels/${ch}/schedule?date=${dateStr}&fullDay=true`;
-                    
-                    const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        console.error(`Fel på kanal ${ch}: Status ${response.status}`);
-                        throw new Error("HTTP " + response.status);
-                    }
-                    
-                    const data = await response.json();
+                let success = false;
+                let attempts = 0;
 
-                    if (data.broadcasts) {
-                        const movies = data.broadcasts
-                            .filter(b => b.isMovie)
-                            .map(b => ({
-                                title: b.title,
-                                startTime: b.startTime,
-                                channel: ch.toUpperCase(),
-                                desc: b.description,
-                                imdbRate: b.imdbRate,
-                                imdbUrl: b.imdbUrl,
-                                image: b.image ? b.image.url : null,
-                                date: dateStr
-                            }));
-                        allMovies = [...allMovies, ...movies];
+                while (!success && attempts < 2) {
+                    try {
+                        attempts++;
+                        const proxyUrl = `/api/channels/${ch}/schedule?date=${dateStr}&fullDay=true`;
+                        const response = await fetch(proxyUrl);
+                        
+                        // Om vi får "Too Many Requests", vänta 3 sekunder och försök igen
+                        if (response.status === 429) {
+                            console.warn(`Väntar lite... för många anrop mot ${ch}.`);
+                            statusEl.innerText = `Pausar (för många anrop)... hämtar ${ch} igen.`;
+                            await new Promise(r => setTimeout(r, 3000));
+                            continue;
+                        }
+                        
+                        if (!response.ok) {
+                            console.error(`Fel på kanal ${ch}: Status ${response.status}`);
+                            throw new Error("HTTP " + response.status);
+                        }
+                        
+                        const data = await response.json();
+
+                        if (data.broadcasts) {
+                            const movies = data.broadcasts
+                                .filter(b => b.isMovie)
+                                .map(b => ({
+                                    title: b.title,
+                                    startTime: b.startTime,
+                                    channel: ch.toUpperCase(),
+                                    desc: b.description,
+                                    imdbRate: b.imdbRate,
+                                    imdbUrl: b.imdbUrl,
+                                    image: b.image ? b.image.url : null,
+                                    date: dateStr
+                                }));
+                            allMovies = [...allMovies, ...movies];
+                        }
+                        success = true; // Markera att hämtningen gick bra
+                    } catch (e) { 
+                        console.error(`Kunde inte hämta ${ch}:`, e);
+                        break; // Bryt ut ur while-loopen om det var ett annat fel än 429
                     }
-                } catch (e) { 
-                    console.error(`Kunde inte hämta ${ch}:`, e);
                 }
                 
-                // Lite längre paus för säkerhets skull
-                await new Promise(r => setTimeout(r, 300));
+                // Mycket längre paus mellan kanalerna för att undvika 429-fel (1200ms)
+                await new Promise(r => setTimeout(r, 1200));
             }
 
             if (allMovies.length > 0) {

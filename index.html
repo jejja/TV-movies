@@ -18,7 +18,6 @@
         .tab { flex: 1; padding: 12px; border: none; background: #2a2a2a; color: var(--gray); border-radius: 8px; font-weight: bold; cursor: pointer; }
         .tab.active { background: var(--accent); color: white; }
         
-        /* Rubriker för kanalerna */
         .section-title { color: var(--text); font-size: 20px; margin: 25px 15px 5px 15px; padding-bottom: 5px; border-bottom: 2px solid #333; }
         
         .container { padding: 10px 15px 20px 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
@@ -106,17 +105,25 @@
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
             const durationStr = getDurationText(m.startTime, m.endTime);
             
+            // Anpassa informationen baserat på vilken flik vi är på
+            let metaHTML = `${m.channel}`;
+            if (currentTab === 'today') {
+                metaHTML += ` • ${timeStr}`; // Visa klockslag för idag
+            } else {
+                metaHTML += ` • ${dateStr}`; // Visa datum för historik
+            }
+            
+            if (durationStr) {
+                metaHTML += `<br>⏱️ ${durationStr}`;
+            }
+
             return `
                 <div class="movie-card" onclick="openModalById('${m.startTime}-${m.title.replace(/'/g, "\\'")}')">
                     ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
                     <img class="poster" src="${m.image || 'https://via.placeholder.com/150x225?text=Ingen+Bild'}" loading="lazy">
                     <div class="info">
                         <div class="title">${m.title}</div>
-                        <div class="meta">
-                            ${m.channel} • ${timeStr}
-                            ${durationStr ? `<br>⏱️ ${durationStr}` : ''}
-                            ${currentTab === 'history' ? `<br>📅 ${dateStr}` : ''}
-                        </div>
+                        <div class="meta">${metaHTML}</div>
                     </div>
                 </div>
             `;
@@ -134,57 +141,57 @@
                 return;
             }
 
+            // Hämta rätt filmer baserat på flik
+            let moviesToDisplay = [];
             if (currentTab === 'today') {
-                const todayMovies = allMoviesData.filter(m => m.startTime >= startOfTodayMs);
-                
-                if (todayMovies.length === 0) {
+                moviesToDisplay = allMoviesData.filter(m => m.startTime >= startOfTodayMs);
+                if (moviesToDisplay.length === 0) {
                     root.innerHTML = `<p style='text-align: center; color: var(--gray); padding-top: 20px;'>Inga filmer hittades idag.</p>`;
                     return;
                 }
-
-                const topMovies = todayMovies.filter(m => parseFloat(m.imdbRate) >= 7.0);
-                topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate));
-                
-                if (topMovies.length > 0) {
-                    const topSection = document.createElement('div');
-                    topSection.innerHTML = `
-                        <h2 class="section-title">⭐ Topprankade (7.0+)</h2>
-                        <div class="container">${topMovies.map(m => createCardHTML(m)).join('')}</div>
-                    `;
-                    root.appendChild(topSection);
-                }
-
-                const kanaler = ["SVT1", "SVT2", "TV3", "TV4", "KANAL 5", "TV6", "SJUAN", "TV8", "KANAL 9", "TV10", "KANAL 11", "TV12"];
-                
-                kanaler.forEach(ch => {
-                    const chMovies = todayMovies.filter(m => m.channel === ch);
-                    chMovies.sort((a, b) => a.startTime - b.startTime);
-                    
-                    if (chMovies.length > 0) {
-                        const chSection = document.createElement('div');
-                        chSection.innerHTML = `
-                            <h2 class="section-title">📺 ${ch}</h2>
-                            <div class="container">${chMovies.map(m => createCardHTML(m)).join('')}</div>
-                        `;
-                        root.appendChild(chSection);
-                    }
-                });
-
             } else {
-                const historyMovies = allMoviesData.filter(m => m.startTime < startOfTodayMs);
-                historyMovies.sort((a, b) => b.startTime - a.startTime);
-                
-                if (historyMovies.length === 0) {
+                moviesToDisplay = allMoviesData.filter(m => m.startTime < startOfTodayMs);
+                if (moviesToDisplay.length === 0) {
                     root.innerHTML = `<p style='text-align: center; color: var(--gray); padding-top: 20px;'>Arkivet är tomt. Det byggs upp automatiskt dag för dag!</p>`;
                     return;
                 }
-                
-                const histSection = document.createElement('div');
-                histSection.innerHTML = `
-                    <div class="container">${historyMovies.map(m => createCardHTML(m)).join('')}</div>
-                `;
-                root.appendChild(histSection);
             }
+
+            // --- 1. TOPPRANKADE (7.0+) ---
+            const topMovies = moviesToDisplay.filter(m => parseFloat(m.imdbRate) >= 7.0);
+            topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate));
+            
+            if (topMovies.length > 0) {
+                const topSection = document.createElement('div');
+                topSection.innerHTML = `
+                    <h2 class="section-title">⭐ Topprankade (7.0+)</h2>
+                    <div class="container">${topMovies.map(m => createCardHTML(m)).join('')}</div>
+                `;
+                root.appendChild(topSection);
+            }
+
+            // --- 2. KANAL FÖR KANAL ---
+            const kanaler = ["SVT1", "SVT2", "TV3", "TV4", "KANAL 5", "TV6", "SJUAN", "TV8", "KANAL 9", "TV10", "KANAL 11", "TV12"];
+            
+            kanaler.forEach(ch => {
+                const chMovies = moviesToDisplay.filter(m => m.channel === ch);
+                
+                // Om vi är på historikfliken, lägg nyaste filmerna först. Annars tidsordning under dagen.
+                if (currentTab === 'history') {
+                    chMovies.sort((a, b) => b.startTime - a.startTime);
+                } else {
+                    chMovies.sort((a, b) => a.startTime - b.startTime);
+                }
+                
+                if (chMovies.length > 0) {
+                    const chSection = document.createElement('div');
+                    chSection.innerHTML = `
+                        <h2 class="section-title">📺 ${ch}</h2>
+                        <div class="container">${chMovies.map(m => createCardHTML(m)).join('')}</div>
+                    `;
+                    root.appendChild(chSection);
+                }
+            });
         }
 
         function switchTab(tab) {

@@ -58,76 +58,72 @@ async function run() {
     const programmes = xml.split('<programme');
     console.log(`Analyserar ${programmes.length} program för ${today}...`);
 
-    // --- UTÖKAD KANAL-LISTA ---
-    const channelsToFind = [
-        { keys: ["svt1"], name: "SVT1" },
-        { keys: ["svt2"], name: "SVT2" },
-        { keys: ["tv3"], name: "TV3" },
-        { keys: ["tv4"], name: "TV4" },
-        { keys: ["kanal5", "k5."], name: "KANAL 5" },
-        { keys: ["tv6"], name: "TV6" },
-        { keys: ["sjuan"], name: "SJUAN" },
-        { keys: ["tv8", "kanal8"], name: "TV8" },
-        { keys: ["kanal9", "k9."], name: "KANAL 9" },
-        { keys: ["tv10", "kanal10"], name: "TV10" },
-        { keys: ["kanal11", "k11."], name: "KANAL 11" },
-        { keys: ["tv12"], name: "TV12" }
-    ];
+    // --- STRÄNG KANAL-LISTA (Baserat på din logg tidigare) ---
+    const channelMap = {
+        "[SVT1HD].SVT1.HD.se": "SVT1",
+        "[SVT2HD].SVT2.HD.se": "SVT2",
+        "[TV3HD].TV3.HD.se": "TV3",
+        "[TV4HD].TV4.HD.se": "TV4",
+        "[KANAL5HD].Kanal5.HD.se": "KANAL 5",
+        "[TV6HD].TV6.HD.se": "TV6",
+        "[SJUANHD].Sjuan.HD.se": "SJUAN",
+        "[TV8HD].TV8.HD.se": "TV8",
+        "[KANAL9HD].Kanal9.HD.se": "KANAL 9",
+        "[TV10HD].TV10.HD.se": "TV10",
+        "[KANAL11HD].Kanal11.HD.se": "KANAL 11",
+        "[TV12HD].TV12.HD.se": "TV12"
+    };
 
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
         
-        // 1. Kolla kanal ID
+        // 1. Kanal-koll
         const channelMatch = prog.match(/channel="(.*?)"/);
         if (!channelMatch) continue;
-        const rawId = channelMatch[1].toLowerCase();
-        
-        // Skippa play/streaming (vi kollar efter ".play" eller bara "play" utanför klamrarna)
-        if (rawId.includes("play") && !rawId.includes("hd")) continue;
+        const rawId = channelMatch[1];
+        const cleanName = channelMap[rawId];
+        if (!cleanName) continue;
 
-        const foundChannel = channelsToFind.find(c => c.keys.some(k => rawId.includes(k)));
-        if (!foundChannel) continue;
-
-        // 2. Kolla Kategori - Vi letar nu efter ALLT som liknar en film
-        const categories = [...prog.matchAll(/<category[^>]*>(.*?)<\/category>/gi)].map(m => m[1].toLowerCase());
-        const movieKeywords = ["film", "movie", "action", "drama", "thriller", "komedi", "comedy", "sci-fi", "rysare", "skräck", "romantik", "fantasy", "spelfilm"];
-        
-        const isMovie = categories.some(cat => movieKeywords.some(key => cat.includes(key)));
-        
-        if (!isMovie) continue;
-
-        // 3. Kolla datum
+        // 2. Start- och stopptid (för att räkna ut längden)
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
-        if (!startMatch) continue;
+        const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
+        if (!startMatch || !stopMatch) continue;
+
         const progDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
         if (progDate !== today) continue;
+
+        // --- RÄKNA UT LÄNGDEN ---
+        let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
+        const startTimeMs = new Date(`${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`).getTime();
+        
+        let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
+        const stopTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
+        
+        const durationMinutes = (stopTimeMs - startTimeMs) / 1000 / 60;
+
+        // --- STRIKT FILTER: Måste vara minst 70 minuter långt ---
+        if (durationMinutes < 70) continue;
+
+        // 3. Kategori-koll (Bara film-relaterat nu!)
+        const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie|[Sp]elfilm).*?<\/category>/i);
+        if (!isMovie) continue;
 
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
         const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
-        const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
-        
-        let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
-        const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
-        
-        let endTimeMs = null;
-        if (stopMatch) {
-            let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
-            endTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
-        }
 
-        if (!moviesToday.find(m => m.title === title && m.channel === foundChannel.name && m.startTime === new Date(startTime).getTime())) {
-            console.log(`🎬 HITTAD: ${title} på ${foundChannel.name} (${rawId})`);
+        if (!moviesToday.find(m => m.title === title && m.channel === cleanName && m.startTime === startTimeMs)) {
+            console.log(`🎬 FILM HITTAD: ${title} (${durationMinutes} min) på ${cleanName}`);
             const movieData = await getMovieInfo(title);
             
             moviesToday.push({
                 title: title,
-                channel: foundChannel.name,
+                channel: cleanName,
                 originalChannel: rawId, 
-                startTime: new Date(startTime).getTime(),
-                endTime: endTimeMs,
+                startTime: startTimeMs,
+                endTime: stopTimeMs,
                 image: movieData ? movieData.poster : null,
                 imdbRate: movieData ? movieData.rating : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
@@ -138,6 +134,7 @@ async function run() {
         }
     }
 
+    // Rensning och sparande
     for (const newMovie of moviesToday) {
         const idx = allMovies.findIndex(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
         if (idx !== -1) allMovies[idx] = newMovie;
@@ -149,7 +146,7 @@ async function run() {
     allMovies.sort((a, b) => a.startTime - b.startTime);
     
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
-    console.log(`\n✅ Klar! Sparade ${moviesToday.length} filmer.`);
+    console.log(`\n✅ Klar! Sparade ${moviesToday.length} riktiga spelfilmer.`);
 }
 
 run();

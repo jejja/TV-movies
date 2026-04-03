@@ -9,24 +9,18 @@ async function getMovieInfo(title) {
     try {
         const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
-        
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
             const movie = tmdbSearchData.results[0];
             let imdbRating = null;
             let imdbId = null;
-
             const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}`);
             const tmdbDetailsData = await tmdbDetailsRes.json();
             imdbId = tmdbDetailsData.imdb_id;
-
             if (imdbId && OMDB_KEY) {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
-                if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") {
-                    imdbRating = omdbData.imdbRating;
-                }
+                if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
             }
-
             return {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
                 desc: movie.overview || null,
@@ -42,7 +36,6 @@ async function run() {
     const today = new Date().toISOString().split('T')[0];
     let moviesToday = [];
     let allMovies = [];
-    
     try {
         if (fs.existsSync('movies.json')) {
             allMovies = JSON.parse(fs.readFileSync('movies.json', 'utf-8'));
@@ -63,23 +56,28 @@ async function run() {
     }
 
     const programmes = xml.split('<programme');
-    console.log(`Analyserar ${programmes.length} program...`);
+    console.log(`Analyserar ${programmes.length} program för datum ${today}...`);
 
-    // --- DIN GODKÄNDA LISTA ---
+    // --- DIN GODKÄNDA LISTA (nu i gemener för säkrare matchning) ---
     const validIds = [
-        "SVT1.se", "SVT2.se", "TV3.se", "TV4.se", "Kanal5.se", "TV6.se", 
-        "Sjuan.se", "TV8.se", "Kanal9.se", "TV10.se", "Kanal11.se", "TV12.se"
+        "svt1.se", "svt2.se", "tv3.se", "tv4.se", "kanal5.se", "tv6.se", 
+        "sjuan.se", "tv8.se", "kanal9.se", "tv10.se", "kanal11.se", "tv12.se"
     ];
+
+    let seenIds = new Set(); // För debug
 
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
-        
         const channelMatch = prog.match(/channel="(.*?)"/);
         if (!channelMatch) continue;
-        const channelId = channelMatch[1]; // Detta är "originalet" (t.ex. TV4.se)
+        
+        const rawChannelId = channelMatch[1];
+        const channelIdLower = rawChannelId.toLowerCase();
 
-        // FILTER: Vi tar bara om det finns i vår strikta lista
-        if (!validIds.includes(channelId)) continue;
+        if (i < 500) seenIds.add(rawChannelId); // Spara några exempell-IDn
+
+        // FILTER: Kolla om kanalen finns i vår lista
+        if (!validIds.includes(channelIdLower)) continue;
 
         const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie|[Sp]elfilm).*?<\/category>/i);
         if (isMovie) {
@@ -92,13 +90,15 @@ async function run() {
             const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
             const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
             const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
+            
+            if (!titleMatch) continue;
             const title = titleMatch[1].replace(/&amp;/g, '&');
 
             // Snyggt namn för appen
-            let cleanChannel = channelId.replace(".se", "").toUpperCase();
-            if (cleanName === "KANAL5") cleanName = "KANAL 5"; // Fix för mellanslag
-            if (cleanName === "KANAL9") cleanName = "KANAL 9";
-            if (cleanName === "KANAL11") cleanName = "KANAL 11";
+            let cleanChannel = channelIdLower.replace(".se", "").toUpperCase();
+            if (cleanChannel === "KANAL5") cleanChannel = "KANAL 5";
+            if (cleanChannel === "KANAL9") cleanChannel = "KANAL 9";
+            if (cleanChannel === "KANAL11") cleanChannel = "KANAL 11";
 
             let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
             const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
@@ -110,12 +110,13 @@ async function run() {
             }
 
             if (!moviesToday.find(m => m.title === title && m.channel === cleanChannel)) {
+                console.log(`🎬 Hittade: ${title} på ${cleanChannel} (${rawChannelId})`);
                 const movieData = await getMovieInfo(title);
                 
                 moviesToday.push({
                     title: title,
                     channel: cleanChannel,
-                    originalChannel: channelId, // <--- HÄR ÄR DIN DEBUG-INFO!
+                    originalChannel: rawChannelId, 
                     startTime: new Date(startTime).getTime(),
                     endTime: endTimeMs,
                     image: movieData ? movieData.poster : null,
@@ -129,7 +130,11 @@ async function run() {
         }
     }
 
-    // Slå ihop med historik
+    if (moviesToday.length === 0) {
+        console.log("⚠️ Inga filmer hittades. Här är några kanal-IDn som fanns i filen:");
+        console.log(Array.from(seenIds).slice(0, 10).join(", "));
+    }
+
     for (const newMovie of moviesToday) {
         const idx = allMovies.findIndex(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
         if (idx !== -1) allMovies[idx] = newMovie;
@@ -141,7 +146,7 @@ async function run() {
     allMovies.sort((a, b) => a.startTime - b.startTime);
     
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
-    console.log(`Klar! Sparade ${moviesToday.length} filmer.`);
+    console.log(`\n✅ Klar! Sparade ${moviesToday.length} filmer för idag.`);
 }
 
 run();

@@ -147,7 +147,8 @@
 
         async function fetchMovies() {
             try {
-                const githubUrl = 'https://raw.githubusercontent.com/jejja/TV-movies/refs/heads/main/movies.json?token=GHSAT0AAAAAADZQL3R3GSQBK2VTWBB33OW22OPQRPA';
+                // HÄR ÄR DEN NYA, RENA LÄNKEN UTAN TOKEN:
+                const githubUrl = 'https://raw.githubusercontent.com/jejja/TV-movies/main/movies.json';
                 
                 const res = await fetch(githubUrl + '?cb=' + new Date().getTime());
                 

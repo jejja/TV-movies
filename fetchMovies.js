@@ -7,7 +7,10 @@ const OMDB_KEY = process.env.OMDB_API_KEY;
 async function getMovieInfo(title) {
     if (!TMDB_KEY) return null;
     try {
-        const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=sv-SE&page=1`);
+        // Tvingar apostrofer att URL-kodas för att inte bryta TMDB-anropet
+        const safeTitle = encodeURIComponent(title).replace(/'/g, "%27");
+        
+        const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${safeTitle}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
         
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
@@ -143,7 +146,16 @@ async function run() {
 
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
-        const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        
+        // Fixad för alla typer av apostrofer och specialtecken från XML
+        const title = titleMatch[1]
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&apos;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
+            
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
 
         // Hitta årtal i XML som fallback ifall TMDB inte hittar filmen

@@ -11,126 +11,34 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍿</text></svg>">
 
     <style>
-        :root {
-            --bg: #121212;
-            --card: #1e1e1e;
-            --text: #ffffff;
-            --accent: #e50914;
-            --gray: #b3b3b3;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding-bottom: 20px;
-        }
-
-        .tabs {
-            display: flex;
-            position: sticky;
-            top: 0;
-            background: var(--bg);
-            z-index: 100;
-            padding: 10px;
-            gap: 10px;
-            border-bottom: 1px solid #333;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: #2a2a2a;
-            color: var(--gray);
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .tab.active {
-            background: var(--accent);
-            color: white;
-        }
-
-        .container {
-            padding: 15px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-        }
-
-        .movie-card {
-            background: var(--card);
-            border-radius: 10px;
-            overflow: hidden;
-            transition: transform 0.2s;
-            cursor: pointer;
-            position: relative;
-        }
-
+        :root { --bg: #121212; --card: #1e1e1e; --text: #ffffff; --accent: #e50914; --gray: #b3b3b3; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding-bottom: 20px; }
+        .tabs { display: flex; position: sticky; top: 0; background: var(--bg); z-index: 100; padding: 10px; gap: 10px; border-bottom: 1px solid #333; }
+        .tab { flex: 1; padding: 12px; border: none; background: #2a2a2a; color: var(--gray); border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .tab.active { background: var(--accent); color: white; }
+        .container { padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+        .movie-card { background: var(--card); border-radius: 10px; overflow: hidden; transition: transform 0.2s; cursor: pointer; position: relative; }
         .movie-card:active { transform: scale(0.95); }
-
-        .poster {
-            width: 100%;
-            aspect-ratio: 2/3;
-            background: #333;
-            object-fit: cover;
-        }
-
+        .poster { width: 100%; aspect-ratio: 2/3; background: #333; object-fit: cover; }
         .info { padding: 8px; }
         .title { font-size: 14px; font-weight: bold; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .meta { font-size: 11px; color: var(--gray); }
         .imdb-badge { position: absolute; top: 5px; right: 5px; background: #f5c518; color: black; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; z-index: 2; }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .modal-content {
-            background: var(--card);
-            max-width: 500px;
-            width: 100%;
-            border-radius: 15px;
-            position: relative;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: var(--card); max-width: 500px; width: 100%; border-radius: 15px; position: relative; max-height: 80vh; overflow-y: auto; }
         .modal-body { padding: 20px; }
         .close-btn { position: absolute; top: 15px; right: 15px; font-size: 24px; color: white; cursor: pointer; z-index: 10; text-shadow: 0 0 5px black; }
         .modal-desc { color: var(--gray); line-height: 1.5; font-size: 14px; margin: 15px 0; }
         .status { text-align: center; padding: 20px; color: var(--gray); font-size: 14px; font-weight: bold; }
-        
-        /* Ny design för fotnoten */
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: var(--gray);
-            font-size: 12px;
-            margin-top: 20px;
-            border-top: 1px solid #333;
-        }
-        .footer a {
-            color: var(--gray);
-            text-decoration: underline;
-        }
+        .footer { text-align: center; padding: 20px; color: var(--gray); font-size: 12px; margin-top: 20px; border-top: 1px solid #333; }
+        .footer a { color: var(--gray); text-decoration: underline; }
     </style>
 </head>
 <body>
 
     <div class="tabs">
         <button class="tab active" onclick="switchTab('today')">Filmer Idag</button>
-        <button class="tab" onclick="switchTab('history')">Historik</button>
+        <button class="tab" onclick="switchTab('history')">Historik (7 Dagar)</button>
     </div>
 
     <div id="status" class="status">Hämtar filmer...</div>
@@ -155,60 +63,51 @@
 
     <script>
         let currentTab = 'today';
-        const todayStr = new Date().toISOString().split('T')[0];
+        let allMoviesData = []; // Sparar hela JSON-filen här i minnet
 
         async function init() {
-            await cleanupOldHistory();
-            await fetchMovies(); 
-            render();
-        }
-
-        async function fetchMovies() {
             try {
-                // Nu hämtar vi bara filnamnet, eftersom båda bor på GitHub Pages!
-                const githubUrl = 'movies.json';
-                
-                const res = await fetch(githubUrl + '?cb=' + new Date().getTime());
-                
+                const res = await fetch('movies.json?cb=' + new Date().getTime());
                 if (res.ok) {
-                    const movies = await res.json();
-                    if (movies.length > 0) {
-                        localStorage.setItem(`movies_${todayStr}`, JSON.stringify(movies));
-                    }
+                    allMoviesData = await res.json();
                 }
             } catch (e) {
-                console.error("Kunde inte hämta movies.json", e);
+                console.error("Kunde inte hämta filmer", e);
             }
             document.getElementById('status').innerText = "";
+            render();
         }
 
         function render() {
             const grid = document.getElementById('movie-grid');
             grid.innerHTML = "";
+            
+            // Få fram "midnatt" för idag för att kunna filtrera
+            const todayStr = new Date().toISOString().split('T')[0];
+            const startOfTodayMs = new Date(`${todayStr}T00:00:00+02:00`).getTime();
+            
             let moviesToShow = [];
 
             if (currentTab === 'today') {
-                moviesToShow = JSON.parse(localStorage.getItem(`movies_${todayStr}`) || "[]");
+                // Visa filmer vars starttid är idags datum eller senare
+                moviesToShow = allMoviesData.filter(m => m.startTime >= startOfTodayMs);
             } else {
-                Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('movies_') && !key.includes(todayStr)) {
-                        try {
-                            const data = JSON.parse(localStorage.getItem(key));
-                            if(Array.isArray(data)) moviesToShow = [...moviesToShow, ...data];
-                        } catch(e) {}
-                    }
-                });
+                // Historik: Visa filmer vars starttid var FÖRE idag. Sortera så nyast ligger överst.
+                moviesToShow = allMoviesData.filter(m => m.startTime < startOfTodayMs);
                 moviesToShow.sort((a, b) => b.startTime - a.startTime);
             }
 
             if (moviesToShow.length === 0) {
-                grid.innerHTML = `<p style='grid-column: 1/-1; text-align: center; color: var(--gray); padding-top: 20px;'>
-                    Inga filmer hittades. (Kolla att din GitHub Action har körts!)</p>`;
+                let msg = currentTab === 'today' ? "Inga filmer hittades idag." : "Arkivet är tomt. Det byggs upp automatiskt dag för dag!";
+                grid.innerHTML = `<p style='grid-column: 1/-1; text-align: center; color: var(--gray); padding-top: 20px;'>${msg}</p>`;
                 return;
             }
 
             moviesToShow.forEach(m => {
-                const time = new Date(m.startTime).toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
+                const dateObj = new Date(m.startTime);
+                const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
+                const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
+                
                 const card = document.createElement('div');
                 card.className = 'movie-card';
                 card.onclick = () => openModal(m);
@@ -217,11 +116,18 @@
                     <img class="poster" src="${m.image || 'https://via.placeholder.com/150x225?text=Ingen+Bild'}" loading="lazy">
                     <div class="info">
                         <div class="title">${m.title}</div>
-                        <div class="meta">${m.channel} • ${time} ${currentTab === 'history' ? '<br>'+m.date : ''}</div>
+                        <div class="meta">${m.channel} • ${timeStr} ${currentTab === 'history' ? '<br>'+dateStr : ''}</div>
                     </div>
                 `;
                 grid.appendChild(card);
             });
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
         }
 
         function openModal(m) {
@@ -238,25 +144,6 @@
         function closeModal() { 
             document.getElementById('movieModal').style.display = 'none'; 
             document.body.style.overflow = 'auto';
-        }
-
-        function switchTab(tab) {
-            currentTab = tab;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            render();
-        }
-
-        function cleanupOldHistory() {
-            const tenDaysAgo = new Date();
-            tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-            
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('movies_')) {
-                    const datePart = key.split('_')[1];
-                    if (new Date(datePart) < tenDaysAgo) localStorage.removeItem(key);
-                }
-            });
         }
 
         init();

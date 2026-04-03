@@ -205,10 +205,18 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- HÄR ÄR FUNKTIONEN FÖR SPELTID ---
-        function getDurationText(start, end) {
-            if (!start || !end) return "";
-            const diffMs = end - start;
+        // --- HÄR ÄR FUNKTIONEN FÖR RIKTIG SPELTID ---
+        function getDurationText(m) {
+            // 1. Testa riktiga filmlängden från TMDB först (exkl. reklam)
+            if (m.runtime && m.runtime > 0) {
+                const hours = Math.floor(m.runtime / 60);
+                const mins = m.runtime % 60;
+                return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+            }
+            
+            // 2. Fallback: Räkna ut från tablån (inkl. ev. reklam)
+            if (!m.startTime || !m.endTime) return "";
+            const diffMs = m.endTime - m.startTime;
             if (diffMs <= 0) return "";
             const totalMins = Math.floor(diffMs / 60000);
             const hours = Math.floor(totalMins / 60);
@@ -220,9 +228,10 @@
             const dateObj = new Date(m.startTime);
             const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
-            const durationStr = getDurationText(m.startTime, m.endTime);
             
-            // Lade till speltiden (durationStr) här på kortet
+            // Hämtar formatet 2h 31m via nya funktionen
+            const durationStr = getDurationText(m);
+            
             const metaHTML = currentTab === 'today' 
                 ? `Idag ${timeStr} • ${durationStr}` 
                 : `${dateStr} • ${m.channel} • ${durationStr}`;
@@ -312,8 +321,8 @@
             document.getElementById('modalPoster').style.display = m.image ? 'block' : 'none';
             document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
             
-            // Lade till speltiden (durationStr) här i modalen
-            const durationStr = getDurationText(m.startTime, m.endTime);
+            // Speltid även i modalen
+            const durationStr = getDurationText(m);
             const dateStrModal = new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
             document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${dateStrModal} • ${durationStr}`;
             
@@ -327,7 +336,7 @@
             history.pushState({ modalOpen: true }, "");
         }
 
-        // Ny logik: Stänger modalen och backar i historiken om vi inte använder tillbaka-knappen
+        // Stänger modalen och backar i historiken om vi inte använder tillbaka-knappen
         function closeModal(event, fromPopState = false) { 
             if (event) event.stopPropagation();
             

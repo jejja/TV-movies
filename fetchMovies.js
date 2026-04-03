@@ -1,87 +1,101 @@
 const fs = require('fs');
 
-const channels = [
-    { id: 'svt1.svt.se', name: 'SVT1' },
-    { id: 'svt2.svt.se', name: 'SVT2' },
-    { id: 'tv3.se', name: 'TV3' },
-    { id: 'tv4.se', name: 'TV4' },
-    { id: 'kanal5.se', name: 'Kanal 5' },
-    { id: 'tv6.se', name: 'TV6' }
-];
-
+const CHANNELS = ["svt1", "svt2", "tv3", "tv4", "kanal-5", "tv6", "sjuan", "tv8", "kanal-9", "tv10", "kanal-11", "tv12"];
 const TMDB_KEY = process.env.TMDB_API_KEY;
 
+// 1. Funktion för att hämta snygga posters från TMDB
 async function getTMDBInfo(title) {
     if (!TMDB_KEY) return null;
     try {
         const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=sv-SE&page=1`);
         const data = await res.json();
-        
         if (data.results && data.results.length > 0) {
             const movie = data.results[0];
             return {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
-                rating: movie.vote_average ? movie.vote_average.toFixed(1) : null,
-                desc: movie.overview,
-                imdbUrl: `https://www.themoviedb.org/movie/${movie.id}` // TMDB-länk som fallback
+                desc: movie.overview || null
             };
         }
-    } catch (e) {
-        console.error(`Fel vid hämtning från TMDB för ${title}:`, e);
+    } catch (e) {}
+    return null;
+}
+
+// 2. Funktion för att hämta tablå från tv.nu (med inbyggd fördröjning för 429)
+async function fetchTvNu(channel, dateStr) {
+    const url = `https://web-api.tv.nu/channels/${channel}/schedule?date=${dateStr}&fullDay=true`;
+    
+    for (let i = 0; i < 3; i++) { // Försök upp till 3 gånger per kanal
+        const res = await fetch(url, {
+            headers: {
+                // Vi lurar servern att vi är en vanlig webbläsare
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+        
+        if (res.status === 429) {
+            console.log(`[429] Gick lite för snabbt! Väntar 5 sekunder och försöker igen...`);
+            await new Promise(r => setTimeout(r, 5000));
+            continue;
+        }
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
     }
     return null;
 }
 
+// 3. Huvudfunktionen som kör allt
 async function run() {
-    const today = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toISOString().split('T')[0];
     let moviesToday = [];
 
-    for (const ch of channels) {
-        console.log(`Hämtar tablå för ${ch.name}...`);
+    for (const ch of CHANNELS) {
+        console.log(`Hämtar tablå för ${ch}...`);
+        
         try {
-            const res = await fetch(`http://xmltv.xmltv.se/${ch.id}_${today}.xml`);
-            if (!res.ok) continue;
-            const xml = await res.text();
-
-            const programmes = xml.split('<programme');
+            const data = await fetchTvNu(ch, dateStr);
             
-            for (let i = 1; i < programmes.length; i++) {
-                const prog = programmes[i];
+            if (data && data.broadcasts) {
+                const movies = data.broadcasts.filter(b => b.isMovie);
                 
-                if (prog.includes('<category lang="sv">Film</category>')) {
-                    const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
-                    const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
+                for (const m of movies) {
+                    console.log(` -> Hittade: ${m.title}`);
                     
-                    if (startMatch && titleMatch) {
-                        const title = titleMatch[1].replace(/&amp;/g, '&');
-                        const startTime = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}+02:00`;
-                        
-                        console.log(`Hittade film: ${title} på ${ch.name}`);
-                        const tmdbData = await getTMDBInfo(title);
-                        
-                        moviesToday.push({
-                            title: title,
-                            channel: ch.name,
-                            startTime: new Date(startTime).getTime(),
-                            image: tmdbData ? tmdbData.poster : null,
-                            imdbRate: tmdbData ? tmdbData.rating : null,
-                            desc: tmdbData ? tmdbData.desc : "Ingen beskrivning tillgänglig.",
-                            imdbUrl: tmdbData ? tmdbData.imdbUrl : null,
-                            date: today
-                        });
-                        
-                        await new Promise(r => setTimeout(r, 200));
-                    }
+                    // Skicka titeln till TMDB för att få snyggare bilder
+                    const tmdbData = await getTMDBInfo(m.title);
+
+                    moviesToday.push({
+                        title: m.title,
+                        channel: ch.toUpperCase(),
+                        startTime: new Date(m.startTime).getTime(),
+                        // Om TMDB hittar en bild, använd den. Annars ta tv.nu:s inbyggda bild.
+                        image: (tmdbData && tmdbData.poster) ? tmdbData.poster : (m.image ? m.image.url : null),
+                        imdbRate: m.imdbRate || null,
+                        imdbUrl: m.imdbUrl || null,
+                        desc: (tmdbData && tmdbData.desc) ? tmdbData.desc : m.description,
+                        date: dateStr
+                    });
+
+                    // Mikropaus för att inte stressa TMDB:s API
+                    await new Promise(r => setTimeout(r, 300));
                 }
             }
-        } catch (error) {
-            console.error(`Kunde inte hämta ${ch.name}:`, error);
+        } catch (e) {
+            console.error(`Kunde inte hämta ${ch}:`, e.message);
         }
+
+        // MAGIN: Vi väntar hela 3 sekunder innan vi går till nästa kanal. 
+        // Eftersom detta körs i bakgrunden på natten gör det inget att det tar 1-2 minuter totalt!
+        console.log(`Väntar 3 sekunder innan nästa kanal...`);
+        await new Promise(r => setTimeout(r, 3000));
     }
 
+    // Sortera filmerna efter starttid
     moviesToday.sort((a, b) => a.startTime - b.startTime);
+    
+    // Skapa vår statiska JSON-fil
     fs.writeFileSync('movies.json', JSON.stringify(moviesToday, null, 2));
-    console.log(`Klart! Sparade ${moviesToday.length} filmer till movies.json`);
+    console.log(`\n🎉 Klart! Sparade ${moviesToday.length} filmer till movies.json`);
 }
 
 run();

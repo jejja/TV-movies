@@ -9,29 +9,47 @@ async function getMovieInfo(title) {
     try {
         const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
+        
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
             const movie = tmdbSearchData.results[0];
             let imdbRating = null;
             let imdbId = null;
             
-            const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}`);
+            // Vi lägger till &append_to_response=credits för att få skådisar och regissör i samma anrop!
+            const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}&append_to_response=credits`);
             const tmdbDetailsData = await tmdbDetailsRes.json();
-            imdbId = tmdbDetailsData.imdb_id;
             
-            // --- HÄMTA DEN RIKTIGA SPELTIDEN FRÅN TMDB ---
+            imdbId = tmdbDetailsData.imdb_id;
             const actualRuntime = tmdbDetailsData.runtime;
+            
+            // Plocka ut årtal (de första 4 tecknen i "YYYY-MM-DD")
+            const year = tmdbDetailsData.release_date ? tmdbDetailsData.release_date.substring(0, 4) : null;
+            
+            // Plocka ut en bred bakgrundsbild (backdrop)
+            const backdrop = tmdbDetailsData.backdrop_path ? `https://image.tmdb.org/t/p/w1280${tmdbDetailsData.backdrop_path}` : null;
+            
+            // Plocka ut de 3 främsta skådespelarna
+            const actors = tmdbDetailsData.credits?.cast ? tmdbDetailsData.credits.cast.slice(0, 3).map(a => a.name).join(', ') : null;
+            
+            // Leta upp regissören
+            const director = tmdbDetailsData.credits?.crew ? tmdbDetailsData.credits.crew.find(c => c.job === 'Director')?.name : null;
 
             if (imdbId && OMDB_KEY) {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
                 if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
             }
+
             return {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
+                backdrop: backdrop, // Vår nya snygga bild!
                 desc: movie.overview || null,
                 rating: imdbRating || (movie.vote_average ? movie.vote_average.toFixed(1) : null),
                 imdbId: imdbId,
-                runtime: actualRuntime // Sparar ner den!
+                runtime: actualRuntime,
+                year: year,
+                actors: actors,
+                director: director
             };
         }
     } catch (e) {}
@@ -128,6 +146,10 @@ async function run() {
         const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
 
+        // Hitta årtal i XML som fallback ifall TMDB inte hittar filmen
+        const dateMatch = prog.match(/<date>(\d{4})<\/date>/);
+        const xmlYear = dateMatch ? dateMatch[1] : null;
+
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
             console.log(`🎬 MATCH: ${title} på ${cleanChannelName}`);
             const movieData = await getMovieInfo(title);
@@ -140,6 +162,10 @@ async function run() {
                 startTime: startTimeMs,
                 endTime: stopTimeMs,
                 image: movieData ? movieData.poster : null,
+                backdrop: movieData ? movieData.backdrop : null, // NY
+                year: (movieData && movieData.year) ? movieData.year : xmlYear, // NY (TMDB först, sen XML)
+                actors: movieData ? movieData.actors : null, // NY
+                director: movieData ? movieData.director : null, // NY
                 imdbRate: movieData ? movieData.rating : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,

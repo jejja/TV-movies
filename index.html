@@ -147,7 +147,7 @@
 
         async function fetchMovies() {
             try {
-                const githubUrl = 'https://raw.githubusercontent.com/DITT_ANVÄNDARNAMN/DITT_REPO/main/movies.json';
+                const githubUrl = 'https://raw.githubusercontent.com/jejja/TV-movies/refs/heads/main/movies.json?token=GHSAT0AAAAAADZQL3R3GSQBK2VTWBB33OW22OPQRPA';
                 const res = await fetch(githubUrl + '?cb=' + new Date().getTime());
                 
                 if (res.ok) {

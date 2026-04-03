@@ -25,7 +25,7 @@ async function run() {
     const today = new Date().toISOString().split('T')[0];
     let moviesToday = [];
     
-    // --- NYTT: Läs in befintlig historik om den finns ---
+    // Läs in befintlig historik om den finns
     let allMovies = [];
     try {
         if (fs.existsSync('movies.json')) {
@@ -60,7 +60,8 @@ async function run() {
         const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie).*?<\/category>/);
         
         if (isMovie) {
-            const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+            // NYTT: Vi letar även upp tidszonen (t.ex. +0100 eller +0200) i XML-filen
+            const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
             const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
             const channelMatch = prog.match(/channel="(.*?)"/);
             const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
@@ -68,7 +69,6 @@ async function run() {
             if (startMatch && titleMatch && channelMatch) {
                 const progDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
                 
-                // Bara dagens filmer hämtas från XML-filen
                 if (progDate !== today) continue;
 
                 let title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
@@ -78,7 +78,15 @@ async function run() {
                 if (!matchedChannel) continue; 
                 
                 let cleanChannel = matchedChannel.toUpperCase();
-                const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}+02:00`;
+                
+                // NYTT: Bygg rätt tidszonsoffset dynamiskt från datan!
+                let offset = "+00:00"; // Om ingen zon anges, utgå från UTC
+                if (startMatch[7]) {
+                    // Konverterar formatet "+0200" till "+02:00" för JavaScript
+                    offset = startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5);
+                }
+                
+                const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
                 let desc = descMatch ? descMatch[1].replace(/&amp;/g, '&') : "Ingen beskrivning.";
 
                 if (!moviesToday.find(m => m.title === title && m.channel === cleanChannel)) {
@@ -99,25 +107,24 @@ async function run() {
         }
     }
 
-    // --- NYTT: Slå ihop gamla listan med dagens nya filmer ---
+    // Slå ihop gamla listan med dagens nya filmer
     for (const newMovie of moviesToday) {
-        // Kolla så vi inte sparar dubbletter i arkivet
         const exists = allMovies.find(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
         if (!exists) {
             allMovies.push(newMovie);
         }
     }
 
-    // --- NYTT: Ta bort allt som är äldre än 7 dagar ---
+    // Ta bort allt som är äldre än 7 dagar
     const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     allMovies = allMovies.filter(m => (now - m.startTime) <= sevenDaysInMs);
 
-    // Sortera allt på tid och spara
+    // Sortera och spara
     allMovies.sort((a, b) => a.startTime - b.startTime);
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
     
-    console.log(`\n🎉 Klart! Arkivet innehåller nu ${allMovies.length} filmer (max 7 dagar bakåt).`);
+    console.log(`\n🎉 Klart! Arkivet innehåller nu ${allMovies.length} filmer.`);
 }
 
 run();

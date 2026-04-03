@@ -51,7 +51,9 @@
     </div>
 
     <div id="status" class="status">Hämtar filmer...</div>
-    <div id="movie-grid"></div> <div class="footer">
+    <div id="movie-grid"></div>
+
+    <div class="footer">
         Filminformation och bilder tillhandahålls av <a href="https://www.themoviedb.org/" target="_blank">The Movie Database (TMDB)</a>.
     </div>
 
@@ -85,7 +87,6 @@
             render();
         }
 
-        // Hjälpfunktion för att räkna ut och skriva speltiden (t.ex. "1 h 32 min")
         function getDurationText(start, end) {
             if (!start || !end) return "";
             const diffMs = end - start;
@@ -99,14 +100,12 @@
             return `${mins} min`;
         }
 
-        // Hjälpfunktion för att bygga html för ett "filmerkort"
-        function createCardHTML(m, index) {
+        function createCardHTML(m) {
             const dateObj = new Date(m.startTime);
             const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
             const durationStr = getDurationText(m.startTime, m.endTime);
             
-            // Vi skickar indexet i arrayen så att vi vet vilken film vi ska öppna i modalen
             return `
                 <div class="movie-card" onclick="openModalById('${m.startTime}-${m.title.replace(/'/g, "\\'")}')">
                     ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
@@ -136,7 +135,6 @@
             }
 
             if (currentTab === 'today') {
-                // Filtrera ut dagens filmer
                 const todayMovies = allMoviesData.filter(m => m.startTime >= startOfTodayMs);
                 
                 if (todayMovies.length === 0) {
@@ -144,9 +142,8 @@
                     return;
                 }
 
-                // --- 1. TOPPRANKADE (7.0+) ---
                 const topMovies = todayMovies.filter(m => parseFloat(m.imdbRate) >= 7.0);
-                topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate)); // Högst betyg först
+                topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate));
                 
                 if (topMovies.length > 0) {
                     const topSection = document.createElement('div');
@@ -157,12 +154,10 @@
                     root.appendChild(topSection);
                 }
 
-                // --- 2. KANAL FÖR KANAL ---
                 const kanaler = ["SVT1", "SVT2", "TV3", "TV4", "KANAL 5", "TV6", "SJUAN", "TV8", "KANAL 9", "TV10", "KANAL 11", "TV12"];
                 
                 kanaler.forEach(ch => {
                     const chMovies = todayMovies.filter(m => m.channel === ch);
-                    // Sortera i tidsordning (första filmen först)
                     chMovies.sort((a, b) => a.startTime - b.startTime);
                     
                     if (chMovies.length > 0) {
@@ -176,7 +171,6 @@
                 });
 
             } else {
-                // HISTORIK - Visas som en enda lång lista, nyast först.
                 const historyMovies = allMoviesData.filter(m => m.startTime < startOfTodayMs);
                 historyMovies.sort((a, b) => b.startTime - a.startTime);
                 
@@ -187,4 +181,50 @@
                 
                 const histSection = document.createElement('div');
                 histSection.innerHTML = `
-                    <div class="container">${
+                    <div class="container">${historyMovies.map(m => createCardHTML(m)).join('')}</div>
+                `;
+                root.appendChild(histSection);
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
+
+        function openModalById(idMatch) {
+            const [startTime, ...titleParts] = idMatch.split('-');
+            const title = titleParts.join('-');
+            const m = allMoviesData.find(x => x.startTime.toString() === startTime && x.title === title);
+            if(m) openModal(m);
+        }
+
+        function openModal(m) {
+            document.getElementById('modalTitle').innerText = m.title;
+            document.getElementById('modalPoster').src = m.image || 'https://via.placeholder.com/500x280?text=Ingen+bild';
+            document.getElementById('modalDesc').innerText = m.desc || "Ingen beskrivning tillgänglig.";
+            
+            const durationStr = getDurationText(m.startTime, m.endTime);
+            document.getElementById('modalMeta').innerHTML = `
+                📺 ${m.channel} <br> 
+                🕒 Sändes: ${new Date(m.startTime).toLocaleString('sv-SE')} 
+                ${durationStr ? `<br> ⏱️ Speltid: ${durationStr}` : ''}
+            `;
+            
+            document.getElementById('modalImdb').href = m.imdbUrl || '#';
+            document.getElementById('modalImdb').style.display = m.imdbUrl ? 'inline-block' : 'none';
+            document.getElementById('movieModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() { 
+            document.getElementById('movieModal').style.display = 'none'; 
+            document.body.style.overflow = 'auto';
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+name: Uppdatera TV-Tablå
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # Körs kl 04:00 (UTC) varje natt
+  workflow_dispatch: # Gör att vi kan köra den manuellt
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Ger botten rättighet att spara movies.json
+    steps:
+      - name: Checka ut kod
+        uses: actions/checkout@v4
+
+      - name: Sätt upp Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Kör hämtskriptet
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: node fetchMovies.js
+
+      - name: Spara och Pusha movies.json
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add movies.json
+          git commit -m "Auto-uppdatering av tablån" || exit 0
+          git push

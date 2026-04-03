@@ -8,6 +8,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
+        /* Global box-sizing fixar att inget element råkar tryckas ut utanför skärmen (löser modal-buggen) */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         :root { 
             --bg: #0f0f0f; 
             --card: #1a1a1a; 
@@ -122,13 +127,13 @@
             z-index: 1000; 
             justify-content: center; 
             align-items: center; 
-            padding: 20px; 
+            padding: 16px; 
             backdrop-filter: blur(5px);
         }
         .modal-content { 
             background: var(--card); 
-            max-width: 450px; 
             width: 100%; 
+            max-width: 450px; 
             border-radius: 20px; 
             position: relative; 
             max-height: 85vh; 
@@ -173,7 +178,7 @@
 
     <div id="movieModal" class="modal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closeModal()">×</span>
+            <span class="close-btn" onclick="closeModal(event)">×</span>
             <img id="modalPoster" class="poster" style="aspect-ratio: 16/9; object-position: top;">
             <div class="modal-body">
                 <div id="modalGenre" class="modal-genre"></div>
@@ -200,11 +205,27 @@
             } catch (e) { console.error(e); }
         }
 
+        // --- HÄR ÄR FUNKTIONEN FÖR SPELTID ---
+        function getDurationText(start, end) {
+            if (!start || !end) return "";
+            const diffMs = end - start;
+            if (diffMs <= 0) return "";
+            const totalMins = Math.floor(diffMs / 60000);
+            const hours = Math.floor(totalMins / 60);
+            const mins = totalMins % 60;
+            return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        }
+
         function createCardHTML(m) {
             const dateObj = new Date(m.startTime);
             const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
-            const metaHTML = currentTab === 'today' ? `Idag ${timeStr}` : `${dateStr} • ${m.channel}`;
+            const durationStr = getDurationText(m.startTime, m.endTime);
+            
+            // Lade till speltiden (durationStr) här på kortet
+            const metaHTML = currentTab === 'today' 
+                ? `Idag ${timeStr} • ${durationStr}` 
+                : `${dateStr} • ${m.channel} • ${durationStr}`;
 
             const posterHTML = m.image 
                 ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">`
@@ -276,7 +297,6 @@
             document.getElementById('modalTitle').innerText = m.title;
             document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '';
             
-            // --- NY LOGIK FÖR GENRE ---
             let rawGenres = m.originalCategory || 'Film';
             let filteredGenres = rawGenres.split(',')
                 .map(g => g.trim())
@@ -290,14 +310,42 @@
             
             document.getElementById('modalPoster').src = m.image || '';
             document.getElementById('modalPoster').style.display = m.image ? 'block' : 'none';
-            document.getElementById('modalDesc').innerText = m.desc;
-            document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}`;
+            document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
+            
+            // Lade till speltiden (durationStr) här i modalen
+            const durationStr = getDurationText(m.startTime, m.endTime);
+            const dateStrModal = new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+            document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${dateStrModal} • ${durationStr}`;
+            
             document.getElementById('modalImdb').href = m.imdbUrl || '#';
             document.getElementById('modalImdb').style.display = m.imdbUrl ? 'inline-block' : 'none';
+            
             document.getElementById('movieModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Scroll-lås för bakgrunden
+            
+            // Skapar ett state i webbläsarhistoriken för att back-knappen ska fungera
+            history.pushState({ modalOpen: true }, "");
         }
 
-        function closeModal() { document.getElementById('movieModal').style.display = 'none'; }
+        // Ny logik: Stänger modalen och backar i historiken om vi inte använder tillbaka-knappen
+        function closeModal(event, fromPopState = false) { 
+            if (event) event.stopPropagation();
+            
+            const modal = document.getElementById('movieModal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none'; 
+                document.body.style.overflow = 'auto'; // Släpp scroll-låset
+                
+                if (!fromPopState) {
+                    history.back(); // Ta bort state ur historiken om vi kryssade manuellt
+                }
+            }
+        }
+
+        // Lyssna på telefonens bakåtknapp/swipe gesture
+        window.addEventListener('popstate', () => {
+            closeModal(null, true);
+        });
 
         init();
     </script>

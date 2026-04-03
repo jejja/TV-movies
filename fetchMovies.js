@@ -58,13 +58,21 @@ async function run() {
     const programmes = xml.split('<programme');
     console.log(`Analyserar ${programmes.length} program för datum ${today}...`);
 
-    // --- DIN GODKÄNDA LISTA (nu i gemener för säkrare matchning) ---
-    const validIds = [
-        "svt1.se", "svt2.se", "tv3.se", "tv4.se", "kanal5.se", "tv6.se", 
-        "sjuan.se", "tv8.se", "kanal9.se", "tv10.se", "kanal11.se", "tv12.se"
-    ];
-
-    let seenIds = new Set(); // För debug
+    // --- MAPPNING: Koppla EPG-filens konstiga ID:n till snygga namn ---
+    const channelMap = {
+        "[SVT1HD].SVT1.HD.se": "SVT1",
+        "[SVT2HD].SVT2.HD.se": "SVT2",
+        "[TV3HD].TV3.HD.se": "TV3",
+        "[TV4HD].TV4.HD.se": "TV4",
+        "[KANAL5HD].Kanal5.HD.se": "KANAL 5",
+        "[TV6HD].TV6.HD.se": "TV6",
+        "[SJUANHD].Sjuan.HD.se": "SJUAN",
+        "[TV8HD].TV8.HD.se": "TV8",
+        "[KANAL9HD].Kanal9.HD.se": "KANAL 9",
+        "[TV10HD].TV10.HD.se": "TV10",
+        "[KANAL11HD].Kanal11.HD.se": "KANAL 11",
+        "[TV12HD].TV12.HD.se": "TV12"
+    };
 
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
@@ -72,12 +80,10 @@ async function run() {
         if (!channelMatch) continue;
         
         const rawChannelId = channelMatch[1];
-        const channelIdLower = rawChannelId.toLowerCase();
+        const cleanChannel = channelMap[rawChannelId];
 
-        if (i < 500) seenIds.add(rawChannelId); // Spara några exempell-IDn
-
-        // FILTER: Kolla om kanalen finns i vår lista
-        if (!validIds.includes(channelIdLower)) continue;
+        // Om kanalen inte finns i vår karta (t.ex. TV4 Play), hoppa över den
+        if (!cleanChannel) continue;
 
         const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie|[Sp]elfilm).*?<\/category>/i);
         if (isMovie) {
@@ -94,12 +100,6 @@ async function run() {
             if (!titleMatch) continue;
             const title = titleMatch[1].replace(/&amp;/g, '&');
 
-            // Snyggt namn för appen
-            let cleanChannel = channelIdLower.replace(".se", "").toUpperCase();
-            if (cleanChannel === "KANAL5") cleanChannel = "KANAL 5";
-            if (cleanChannel === "KANAL9") cleanChannel = "KANAL 9";
-            if (cleanChannel === "KANAL11") cleanChannel = "KANAL 11";
-
             let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
             const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
             
@@ -110,7 +110,7 @@ async function run() {
             }
 
             if (!moviesToday.find(m => m.title === title && m.channel === cleanChannel)) {
-                console.log(`🎬 Hittade: ${title} på ${cleanChannel} (${rawChannelId})`);
+                console.log(`🎬 MATCH! ${title} på ${cleanChannel}`);
                 const movieData = await getMovieInfo(title);
                 
                 moviesToday.push({
@@ -125,14 +125,9 @@ async function run() {
                     imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
                     date: today
                 });
-                await new Promise(r => setTimeout(r, 200));
+                await new Promise(r => setTimeout(r, 250));
             }
         }
-    }
-
-    if (moviesToday.length === 0) {
-        console.log("⚠️ Inga filmer hittades. Här är några kanal-IDn som fanns i filen:");
-        console.log(Array.from(seenIds).slice(0, 10).join(", "));
     }
 
     for (const newMovie of moviesToday) {

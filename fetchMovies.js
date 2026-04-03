@@ -13,9 +13,14 @@ async function getMovieInfo(title) {
             const movie = tmdbSearchData.results[0];
             let imdbRating = null;
             let imdbId = null;
+            
             const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}`);
             const tmdbDetailsData = await tmdbDetailsRes.json();
             imdbId = tmdbDetailsData.imdb_id;
+            
+            // --- HÄMTA DEN RIKTIGA SPELTIDEN FRÅN TMDB ---
+            const actualRuntime = tmdbDetailsData.runtime;
+
             if (imdbId && OMDB_KEY) {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
@@ -25,7 +30,8 @@ async function getMovieInfo(title) {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
                 desc: movie.overview || null,
                 rating: imdbRating || (movie.vote_average ? movie.vote_average.toFixed(1) : null),
-                imdbId: imdbId
+                imdbId: imdbId,
+                runtime: actualRuntime // Sparar ner den!
             };
         }
     } catch (e) {}
@@ -63,7 +69,6 @@ async function run() {
     const programmes = xml.split('<programme');
     console.log(`Analyserar ${programmes.length} program...`);
 
-    // --- DIN EXAKTA LISTA FRÅN XML-FILEN ---
     const channelMap = {
         "[SVT1HD].SVT1.HD.se": "SVT1",
         "[SVT2HD].SVT2.HD.se": "SVT2",
@@ -83,14 +88,12 @@ async function run() {
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
         
-        // 1. Kanal-koll (Endast exakta träffar från din lista)
         const channelMatch = prog.match(/channel="(.*?)"/);
         if (!channelMatch) continue;
         const rawId = channelMatch[1];
         const cleanChannelName = channelMap[rawId];
         if (!cleanChannelName) continue; 
 
-        // 2. Kategori-koll (Exkludera Series/Documentary/News)
         const categoryMatches = [...prog.matchAll(/<category[^>]*>(.*?)<\/category>/gi)].map(m => m[1]);
         const originalCategory = categoryMatches.join(', ');
         const catsLower = originalCategory.toLowerCase();
@@ -101,7 +104,6 @@ async function run() {
         const isMovie = movieKeywords.some(key => catsLower.includes(key));
         if (!isMovie) continue;
 
-        // 3. Tid och Datum (Idag + Natt till 05:00)
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         if (!startMatch || !stopMatch) continue;
@@ -119,7 +121,6 @@ async function run() {
         
         const durationMin = (stopTimeMs - startTimeMs) / 1000 / 60;
         
-        // --- STRIKT FILTER: Måste vara minst 70 minuter ---
         if (durationMin < 70) continue;
 
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
@@ -128,7 +129,7 @@ async function run() {
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
 
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
-            console.log(`🎬 MATCH: ${title} på ${cleanChannelName} (${rawId})`);
+            console.log(`🎬 MATCH: ${title} på ${cleanChannelName}`);
             const movieData = await getMovieInfo(title);
             
             moviesToday.push({
@@ -142,6 +143,7 @@ async function run() {
                 imdbRate: movieData ? movieData.rating : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
+                runtime: movieData ? movieData.runtime : null, // Sparar speltiden!
                 date: todayStr
             });
             await new Promise(r => setTimeout(r, 200));

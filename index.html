@@ -24,7 +24,7 @@
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
-            padding-bottom: 50px;
+            padding-bottom: 20px;
         }
 
         .tabs {
@@ -110,6 +110,20 @@
         .close-btn { position: absolute; top: 15px; right: 15px; font-size: 24px; color: white; cursor: pointer; z-index: 10; text-shadow: 0 0 5px black; }
         .modal-desc { color: var(--gray); line-height: 1.5; font-size: 14px; margin: 15px 0; }
         .status { text-align: center; padding: 20px; color: var(--gray); font-size: 14px; font-weight: bold; }
+        
+        /* Ny design för fotnoten */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--gray);
+            font-size: 12px;
+            margin-top: 20px;
+            border-top: 1px solid #333;
+        }
+        .footer a {
+            color: var(--gray);
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -121,6 +135,10 @@
 
     <div id="status" class="status">Hämtar filmer...</div>
     <div id="movie-grid" class="container"></div>
+
+    <div class="footer">
+        Filminformation och bilder tillhandahålls av <a href="https://www.themoviedb.org/" target="_blank">The Movie Database (TMDB)</a>.
+    </div>
 
     <div id="movieModal" class="modal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
@@ -147,8 +165,8 @@
 
         async function fetchMovies() {
             try {
-                // HÄR ÄR DEN NYA, RENA LÄNKEN UTAN TOKEN:
-                const githubUrl = 'https://raw.githubusercontent.com/jejja/TV-movies/main/movies.json';
+                // Nu hämtar vi bara filnamnet, eftersom båda bor på GitHub Pages!
+                const githubUrl = 'movies.json';
                 
                 const res = await fetch(githubUrl + '?cb=' + new Date().getTime());
                 

@@ -217,6 +217,9 @@
                     <span id="modalRating" class="modal-rating"></span>
                 </div>
                 <div id="modalMeta" class="meta"></div>
+                
+                <div id="modalCast" style="font-size: 13px; color: #9ca3af; margin-top: 12px; line-height: 1.4;"></div>
+                
                 <p id="modalDesc" class="modal-desc"></p>
                 <a id="modalImdb" target="_blank" style="background: var(--imdb); color: black; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 14px; display: inline-block;">Öppna IMDb</a>
             </div>
@@ -326,7 +329,7 @@
         }
 
         function openModal(m) {
-            document.getElementById('modalTitle').innerText = m.title;
+            document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
             document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '';
             
             let rawGenres = m.originalCategory || 'Film';
@@ -340,9 +343,19 @@
 
             document.getElementById('modalGenre').innerText = filteredGenres || 'Långfilm';
             
-            document.getElementById('modalPoster').src = m.image || '';
-            document.getElementById('modalPoster').style.display = m.image ? 'block' : 'none';
+            // VÄLJ BACKDROP I FÖRSTA HAND, ANNARS POSTER
+            const heroImg = m.backdrop || m.image || '';
+            document.getElementById('modalPoster').src = heroImg;
+            document.getElementById('modalPoster').style.display = heroImg ? 'block' : 'none';
+            
             document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
+            
+            // BYGG STRÄNG FÖR SKÅDISAR OCH REGISSÖR
+            let castHtml = '';
+            if (m.director) castHtml += `<strong>Regi:</strong> ${m.director}<br>`;
+            if (m.actors) castHtml += `<strong>Skådespelare:</strong> ${m.actors}`;
+            document.getElementById('modalCast').innerHTML = castHtml;
+            document.getElementById('modalCast').style.display = castHtml ? 'block' : 'none';
             
             const durationStr = getDurationText(m);
             const dateStrModal = new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});

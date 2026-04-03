@@ -25,7 +25,6 @@ async function run() {
     const today = new Date().toISOString().split('T')[0];
     let moviesToday = [];
     
-    // Läs in befintlig historik om den finns
     let allMovies = [];
     try {
         if (fs.existsSync('movies.json')) {
@@ -60,15 +59,15 @@ async function run() {
         const isMovie = prog.match(/<category[^>]*>.*?([Ff]ilm|[Mm]ovie).*?<\/category>/);
         
         if (isMovie) {
-            // NYTT: Vi letar även upp tidszonen (t.ex. +0100 eller +0200) i XML-filen
+            // NYTT: Nu hämtar vi även 'stop'-tiden från EPG-filen!
             const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
+            const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
             const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
             const channelMatch = prog.match(/channel="(.*?)"/);
             const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
 
             if (startMatch && titleMatch && channelMatch) {
                 const progDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
-                
                 if (progDate !== today) continue;
 
                 let title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
@@ -76,17 +75,22 @@ async function run() {
                 
                 let matchedChannel = allowedChannels.find(c => channelRaw.includes(c.replace(' ', '')) || channelRaw.includes(c.replace(' ', '')));
                 if (!matchedChannel) continue; 
-                
                 let cleanChannel = matchedChannel.toUpperCase();
                 
-                // NYTT: Bygg rätt tidszonsoffset dynamiskt från datan!
-                let offset = "+00:00"; // Om ingen zon anges, utgå från UTC
-                if (startMatch[7]) {
-                    // Konverterar formatet "+0200" till "+02:00" för JavaScript
-                    offset = startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5);
-                }
-                
+                let offset = "+00:00";
+                if (startMatch[7]) offset = startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5);
                 const startTime = `${progDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`;
+                
+                // Räkna ut stopptiden
+                let endTimeMs = null;
+                if (stopMatch) {
+                    const stopDate = `${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}`;
+                    let stopOffset = "+00:00";
+                    if (stopMatch[7]) stopOffset = stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5);
+                    const stopTime = `${stopDate}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`;
+                    endTimeMs = new Date(stopTime).getTime();
+                }
+
                 let desc = descMatch ? descMatch[1].replace(/&amp;/g, '&') : "Ingen beskrivning.";
 
                 if (!moviesToday.find(m => m.title === title && m.channel === cleanChannel)) {
@@ -95,6 +99,7 @@ async function run() {
                         title: title,
                         channel: cleanChannel,
                         startTime: new Date(startTime).getTime(),
+                        endTime: endTimeMs, // Skicka med sluttiden
                         image: tmdbData ? tmdbData.poster : null,
                         imdbRate: tmdbData ? tmdbData.rating : null,
                         desc: (tmdbData && tmdbData.desc) ? tmdbData.desc : desc,
@@ -107,23 +112,17 @@ async function run() {
         }
     }
 
-    // Slå ihop gamla listan med dagens nya filmer
     for (const newMovie of moviesToday) {
         const exists = allMovies.find(m => m.title === newMovie.title && m.startTime === newMovie.startTime);
-        if (!exists) {
-            allMovies.push(newMovie);
-        }
+        if (!exists) allMovies.push(newMovie);
     }
 
-    // Ta bort allt som är äldre än 7 dagar
     const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     allMovies = allMovies.filter(m => (now - m.startTime) <= sevenDaysInMs);
 
-    // Sortera och spara
     allMovies.sort((a, b) => a.startTime - b.startTime);
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
-    
     console.log(`\n🎉 Klart! Arkivet innehåller nu ${allMovies.length} filmer.`);
 }
 

@@ -147,8 +147,9 @@
 
         async function fetchMovies() {
             try {
-                // Vi hämtar den statiska json-filen som GitHub genererar!
-                const res = await fetch('movies.json?cb=' + new Date().getTime());
+                const githubUrl = 'https://raw.githubusercontent.com/DITT_ANVÄNDARNAMN/DITT_REPO/main/movies.json';
+                const res = await fetch(githubUrl + '?cb=' + new Date().getTime());
+                
                 if (res.ok) {
                     const movies = await res.json();
                     if (movies.length > 0) {

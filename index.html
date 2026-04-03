@@ -26,7 +26,6 @@
             padding-bottom: 40px;
         }
 
-        /* Navigering */
         .tabs { 
             display: flex; 
             position: sticky; 
@@ -48,7 +47,6 @@
             font-weight: 600; 
             font-size: 14px;
             cursor: pointer; 
-            transition: all 0.2s;
         }
         .tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3); }
 
@@ -60,7 +58,6 @@
             letter-spacing: -0.02em;
         }
 
-        /* Grid */
         .container { 
             padding: 0 16px 20px 16px; 
             display: grid; 
@@ -68,7 +65,6 @@
             gap: 16px; 
         }
 
-        /* Kortet */
         .movie-card { 
             background: var(--card); 
             border-radius: 12px; 
@@ -80,7 +76,6 @@
         }
         .movie-card:active { transform: scale(0.96); }
 
-        /* Bild & Placeholder */
         .poster-container {
             width: 100%;
             aspect-ratio: 2/3;
@@ -89,23 +84,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
         }
-        .poster { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-        }
-        .poster-placeholder {
-            font-size: 40px;
-            filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4));
-        }
+        .poster { width: 100%; height: 100%; object-fit: cover; }
+        .poster-placeholder { font-size: 40px; filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4)); }
 
-        /* Betyg */
         .imdb-badge { 
             position: absolute; 
-            top: 8px; 
-            right: 8px; 
+            top: 8px; right: 8px; 
             background: var(--imdb); 
             color: black; 
             padding: 3px 6px; 
@@ -113,11 +98,9 @@
             font-size: 11px; 
             font-weight: 800; 
             z-index: 2; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4); 
         }
 
-        /* Info */
-        .info { padding: 10px; }
+        .info { padding: 12px; }
         .title { 
             font-size: 14px; 
             font-weight: 600; 
@@ -128,16 +111,7 @@
             -webkit-box-orient: vertical; 
             overflow: hidden; 
         }
-        .genre-tag {
-            font-size: 11px;
-            color: var(--accent);
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-            display: block;
-            letter-spacing: 0.05em;
-        }
-        .meta { font-size: 12px; color: var(--gray); font-weight: 400; }
+        .meta { font-size: 12px; color: var(--gray); }
 
         /* Modal */
         .modal { 
@@ -149,7 +123,6 @@
             justify-content: center; 
             align-items: center; 
             padding: 20px; 
-            box-sizing: border-box; 
             backdrop-filter: blur(5px);
         }
         .modal-content { 
@@ -166,32 +139,22 @@
         .close-btn { 
             position: absolute; 
             top: 15px; right: 15px; 
-            font-size: 28px; 
-            color: white; 
-            cursor: pointer; 
-            z-index: 10; 
+            font-size: 28px; color: white; 
+            cursor: pointer; z-index: 10; 
             background: rgba(0,0,0,0.5);
             width: 36px; height: 36px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
         }
+        .modal-genre { color: var(--accent); font-weight: 600; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
         .modal-title-wrap { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-        .modal-rating { color: var(--imdb); font-weight: 800; font-size: 18px; }
+        .modal-rating { color: var(--imdb); font-weight: 800; font-size: 20px; }
         .modal-desc { color: #d1d5db; line-height: 1.6; font-size: 15px; margin: 18px 0; }
 
-        .footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 11px; line-height: 1.8; }
+        .footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 11px; }
         .footer a { color: white; text-decoration: none; font-weight: 600; }
 
-        .empty-channel { 
-            grid-column: 1 / -1; 
-            padding: 30px; 
-            background: rgba(255,255,255,0.02); 
-            border: 1px dashed #333; 
-            border-radius: 12px; 
-            text-align: center; 
-            color: var(--gray); 
-            font-size: 13px; 
-        }
+        .empty-channel { grid-column: 1 / -1; padding: 30px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 12px; text-align: center; color: var(--gray); font-size: 13px; }
     </style>
 </head>
 <body>
@@ -213,13 +176,14 @@
             <span class="close-btn" onclick="closeModal()">×</span>
             <img id="modalPoster" class="poster" style="aspect-ratio: 16/9; object-position: top;">
             <div class="modal-body">
+                <div id="modalGenre" class="modal-genre"></div>
                 <div class="modal-title-wrap">
                     <h2 id="modalTitle" style="margin: 0; letter-spacing: -0.03em;"></h2>
                     <span id="modalRating" class="modal-rating"></span>
                 </div>
                 <div id="modalMeta" class="meta"></div>
                 <p id="modalDesc" class="modal-desc"></p>
-                <a id="modalImdb" target="_blank" style="background: var(--imdb); color: black; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 800; font-size: 14px; display: inline-block;">IMDb Profil</a>
+                <a id="modalImdb" target="_blank" style="background: var(--imdb); color: black; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 14px; display: inline-block;">Öppna IMDb</a>
             </div>
         </div>
     </div>
@@ -240,13 +204,8 @@
             const dateObj = new Date(m.startTime);
             const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
             const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
-            
-            // Plocka ut genre (tar första ordet från kategorin)
-            const genre = m.originalCategory ? m.originalCategory.split(',')[0].trim() : "Film";
-            
             const metaHTML = currentTab === 'today' ? `Idag ${timeStr}` : `${dateStr} • ${m.channel}`;
 
-            // Om bild saknas, visa en stjärna
             const posterHTML = m.image 
                 ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">`
                 : `<span class="poster-placeholder">⭐</span>`;
@@ -254,11 +213,8 @@
             return `
                 <div class="movie-card" onclick="openModalById('${m.startTime}-${m.title.replace(/'/g, "\\'")}')">
                     ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
-                    <div class="poster-container">
-                        ${posterHTML}
-                    </div>
+                    <div class="poster-container">${posterHTML}</div>
                     <div class="info">
-                        <span class="genre-tag">${genre}</span>
                         <div class="title">${m.title}</div>
                         <div class="meta">${metaHTML}</div>
                     </div>
@@ -276,12 +232,12 @@
                 ? allMoviesData.filter(m => m.startTime >= startOfTodayMs)
                 : allMoviesData.filter(m => m.startTime < startOfTodayMs);
 
-            // Topplista
-            const topMovies = moviesToDisplay.filter(m => parseFloat(m.imdbRate) >= 7.5);
+            // Bäst på IMDb (Gräns 7.0)
+            const topMovies = moviesToDisplay.filter(m => parseFloat(m.imdbRate) >= 7.0);
             if (topMovies.length > 0 && currentTab === 'today') {
                 const topSection = document.createElement('div');
                 topSection.innerHTML = `
-                    <h2 class="section-title">✨ Guldkorn ikväll</h2>
+                    <h2 class="section-title">⭐ Bäst på IMDb (7.0+)</h2>
                     <div class="container">${topMovies.map(m => createCardHTML(m)).join('')}</div>
                 `;
                 root.appendChild(topSection);
@@ -295,7 +251,7 @@
 
                 const chSection = document.createElement('div');
                 chSection.innerHTML = `
-                    <h2 class="section-title">${ch}</h2>
+                    <h2 class="section-title">📺 ${ch}</h2>
                     <div class="container">${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer planerade</div>'}</div>
                 `;
                 root.appendChild(chSection);
@@ -318,6 +274,7 @@
         function openModal(m) {
             document.getElementById('modalTitle').innerText = m.title;
             document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '';
+            document.getElementById('modalGenre').innerText = m.originalCategory || 'Film';
             document.getElementById('modalPoster').src = m.image || '';
             document.getElementById('modalPoster').style.display = m.image ? 'block' : 'none';
             document.getElementById('modalDesc').innerText = m.desc;

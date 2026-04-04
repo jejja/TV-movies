@@ -47,7 +47,7 @@ async function getMovieInfo(title) {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
                 backdrop: backdrop, // Vår nya snygga bild!
                 desc: movie.overview || null,
-                rating: imdbRating || null, // Nu sparas BARA riktiga IMDb-betyg!
+                rating: imdbRating || null, // Sparar BARA riktiga IMDb-betyg nu, inga TMDB-10:or!
                 imdbId: imdbId,
                 runtime: actualRuntime,
                 year: year,
@@ -115,38 +115,61 @@ async function run() {
     for (let i = 1; i < programmes.length; i++) {
         const prog = programmes[i];
         
+        // 1. Vilken kanal är det?
         const channelMatch = prog.match(/channel="(.*?)"/);
         if (!channelMatch) continue;
         const rawId = channelMatch[1];
         const cleanChannelName = channelMap[rawId];
         if (!cleanChannelName) continue; 
 
+        // 2. Plocka ut titeln tidigt för att kunna logga snyggt, och tvätta den direkt!
+        const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
+        if (!titleMatch) continue;
+        
+        const title = titleMatch[1]
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&apos;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/^Dox:\s*/i, ''); // Tvättar bort SVT:s Dox-prefix
+
+        // 3. Kategorilogik
         const categoryMatches = [...prog.matchAll(/<category[^>]*>(.*?)<\/category>/gi)].map(m => m[1]);
         const originalCategory = categoryMatches.join(', ');
         const catsLower = originalCategory.toLowerCase();
 
-        // --- NY SMART KATEGORILOGIK ---
-        // 1. Kolla om den överhuvudtaget har någon genre som tyder på film
         const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy"];
         const isMovie = movieKeywords.some(key => catsLower.includes(key));
         
-        if (!isMovie) continue; // Har den inget film-ord alls? Skippa direkt!
+        if (!isMovie) continue; // Inte en film (t.ex. Rapport). Skippa tyst!
 
-        // 2. Definiera ord som vi normalt sett vill filtrera bort
-        const excludeKeywords = ["series", "serie", "nyheter", "news", "theater", "documentary", "concert"];
-        const hasExcludeKeyword = excludeKeywords.some(key => catsLower.includes(key));
+        // HÅRDA exkluderingsord - Blockerar ALLTID
+        const hardExcludeKeywords = ["series", "serie", "nyheter", "news", "theater", "concert", "konsert", "musik", "music", "classical", "sport"];
+        const foundHardExclude = hardExcludeKeywords.find(key => catsLower.includes(key)); 
+        
+        if (foundHardExclude) {
+            console.log(`🛑 FILTRERAD: "${title}" (Blockerades av ordet: '${foundHardExclude}') | EPG-Kategori: ${originalCategory}`);
+            continue; 
+        }
 
-        // 3. Om den har ett "förbjudet" ord (t.ex. documentary), så MÅSTE den uttryckligen
-        // kallas för movie/film/spelfilm för att få stanna kvar.
-        if (hasExcludeKeyword) {
+        // MJUKA exkluderingsord - Saker som dokumentärer
+        const softExcludeKeywords = ["documentary", "dokumentär"];
+        const foundSoftExclude = softExcludeKeywords.find(key => catsLower.includes(key));
+
+        if (foundSoftExclude) {
             const strongMovieKeywords = ["film", "movie", "spelfilm"];
             const isExplicitlyMovie = strongMovieKeywords.some(key => catsLower.includes(key));
             
-            // Om den är en dokumentär/serie men saknar de starka orden movie/film/spelfilm -> skippa
-            if (!isExplicitlyMovie) continue; 
+            // Om den är en dokumentär men saknar de starka orden movie/film/spelfilm -> skippa
+            if (!isExplicitlyMovie) {
+                console.log(`⚠️ FILTRERAD: "${title}" (Är en '${foundSoftExclude}' men saknade starkt film-ord) | EPG-Kategori: ${originalCategory}`);
+                continue; 
+            }
         }
-        // ------------------------------
 
+        // 4. Tid och datum
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         if (!startMatch || !stopMatch) continue;
@@ -164,27 +187,14 @@ async function run() {
         
         const durationMin = (stopTimeMs - startTimeMs) / 1000 / 60;
         
-        if (durationMin < 70) continue;
+        if (durationMin < 70) continue; // För kort för att vara en långfilm
 
-        const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
-        if (!titleMatch) continue;
-        
-        // Fixad för alla typer av apostrofer, specialtecken och TVÄTTAR BORT "Dox:"
-        const title = titleMatch[1]
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&apos;/g, "'")
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/^Dox:\s*/i, ''); // <-- HÄR LIGGER FIXEN
-            
+        // 5. Plocka ut resten av datan
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
-
-        // Hitta årtal i XML som fallback ifall TMDB inte hittar filmen
         const dateMatch = prog.match(/<date>(\d{4})<\/date>/);
         const xmlYear = dateMatch ? dateMatch[1] : null;
 
+        // 6. Spara ner filmen om vi inte redan har den idag
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
             console.log(`🎬 MATCH: ${title} på ${cleanChannelName}`);
             const movieData = await getMovieInfo(title);
@@ -197,14 +207,14 @@ async function run() {
                 startTime: startTimeMs,
                 endTime: stopTimeMs,
                 image: movieData ? movieData.poster : null,
-                backdrop: movieData ? movieData.backdrop : null, // NY
-                year: (movieData && movieData.year) ? movieData.year : xmlYear, // NY (TMDB först, sen XML)
-                actors: movieData ? movieData.actors : null, // NY
-                director: movieData ? movieData.director : null, // NY
+                backdrop: movieData ? movieData.backdrop : null, 
+                year: (movieData && movieData.year) ? movieData.year : xmlYear, 
+                actors: movieData ? movieData.actors : null, 
+                director: movieData ? movieData.director : null, 
                 imdbRate: movieData ? movieData.rating : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
-                runtime: movieData ? movieData.runtime : null, // Sparar speltiden!
+                runtime: movieData ? movieData.runtime : null, 
                 date: todayStr
             });
             await new Promise(r => setTimeout(r, 200));

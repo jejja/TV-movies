@@ -47,7 +47,7 @@ async function getMovieInfo(title) {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
                 backdrop: backdrop, // Vår nya snygga bild!
                 desc: movie.overview || null,
-                rating: imdbRating || (movie.vote_average ? movie.vote_average.toFixed(1) : null),
+                rating: imdbRating || null, // Nu sparas BARA riktiga IMDb-betyg!
                 imdbId: imdbId,
                 runtime: actualRuntime,
                 year: year,

@@ -169,14 +169,15 @@ async function run() {
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
         
-        // Fixad för alla typer av apostrofer och specialtecken från XML
+        // Fixad för alla typer av apostrofer, specialtecken och TVÄTTAR BORT "Dox:"
         const title = titleMatch[1]
             .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
             .replace(/&apos;/g, "'")
             .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'");
+            .replace(/&#39;/g, "'")
+            .replace(/^Dox:\s*/i, ''); // <-- HÄR LIGGER FIXEN
             
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
 

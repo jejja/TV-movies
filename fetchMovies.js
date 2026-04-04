@@ -125,11 +125,27 @@ async function run() {
         const originalCategory = categoryMatches.join(', ');
         const catsLower = originalCategory.toLowerCase();
 
-        if (catsLower.includes("series") || catsLower.includes("serie") || catsLower.includes("nyheter") || catsLower.includes("news") || catsLower.includes("theater") || catsLower.includes("documentary") || catsLower.includes("concert")) continue;
-
+        // --- NY SMART KATEGORILOGIK ---
+        // 1. Kolla om den överhuvudtaget har någon genre som tyder på film
         const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy"];
         const isMovie = movieKeywords.some(key => catsLower.includes(key));
-        if (!isMovie) continue;
+        
+        if (!isMovie) continue; // Har den inget film-ord alls? Skippa direkt!
+
+        // 2. Definiera ord som vi normalt sett vill filtrera bort
+        const excludeKeywords = ["series", "serie", "nyheter", "news", "theater", "documentary", "concert"];
+        const hasExcludeKeyword = excludeKeywords.some(key => catsLower.includes(key));
+
+        // 3. Om den har ett "förbjudet" ord (t.ex. documentary), så MÅSTE den uttryckligen
+        // kallas för movie/film/spelfilm för att få stanna kvar.
+        if (hasExcludeKeyword) {
+            const strongMovieKeywords = ["film", "movie", "spelfilm"];
+            const isExplicitlyMovie = strongMovieKeywords.some(key => catsLower.includes(key));
+            
+            // Om den är en dokumentär/serie men saknar de starka orden movie/film/spelfilm -> skippa
+            if (!isExplicitlyMovie) continue; 
+        }
+        // ------------------------------
 
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);

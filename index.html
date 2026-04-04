@@ -353,7 +353,7 @@
 
         function openModal(m) {
             document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
-            document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '';
+            document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '★ -';
             
             let rawGenres = m.originalCategory || 'Film';
             let filteredGenres = rawGenres.split(',')

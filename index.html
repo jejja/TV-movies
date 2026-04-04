@@ -156,7 +156,7 @@
             width: 100%;
             height: 220px;
             object-fit: cover;
-            object-position: center 25%; /* Fokuserar lite över mitten */
+            object-position: center 25%;
             border-top-left-radius: 20px;
             border-top-right-radius: 20px;
             display: block;
@@ -164,10 +164,26 @@
             mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
         }
 
+        /* NY: Placeholder för Modalen om bilden saknas */
+        .modal-hero-placeholder {
+            width: 100%;
+            height: 220px;
+            background: #262626;
+            display: none; /* Döljs som standard */
+            align-items: center;
+            justify-content: center;
+            font-size: 70px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4));
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%);
+        }
+
         .modal-body { 
             padding: 0 24px 24px 24px; 
             position: relative;
-            margin-top: -30px; /* Drar upp texten över faden */
+            margin-top: -30px; 
         }
         
         .close-btn { 
@@ -208,14 +224,16 @@
     <div id="movieModal" class="modal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closeModal(event)">×</span>
+            
             <img id="modalPoster" class="modal-hero-img">
+            <div id="modalPosterPlaceholder" class="modal-hero-placeholder">⭐</div>
             
             <div class="modal-body">
+                <div id="modalGenre" class="modal-genre"></div>
                 <div class="modal-title-wrap">
                     <h2 id="modalTitle" style="margin: 0; letter-spacing: -0.03em;"></h2>
                     <span id="modalRating" class="modal-rating"></span>
                 </div>
-                <div id="modalGenre" class="modal-genre"></div>
                 <div id="modalMeta" class="meta"></div>
                 
                 <div id="modalCast" style="font-size: 13px; color: #9ca3af; margin-top: 12px; line-height: 1.4;"></div>
@@ -267,7 +285,6 @@
                 ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">`
                 : `<span class="poster-placeholder">⭐</span>`;
 
-            // Fixad säkerhet: Skyddar mot både apostrofer (') och citationstecken (") i titeln.
             const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
             return `
@@ -286,14 +303,10 @@
             const root = document.getElementById('movie-grid');
             root.innerHTML = "";
             
-            // --- HÄR ÄR DEN NYA KODEN FÖR TV-DYGNET (BRYTS KL 05:00) ---
             const now = new Date();
-            // Backa klockan 5 timmar för att se vilken "logisk" dag det är
             const logicalDay = new Date(now.getTime() - 5 * 60 * 60 * 1000);
-            // Sätt starttiden till 05:00:00 på denna logiska dag
             logicalDay.setHours(5, 0, 0, 0);
             const startOfTodayMs = logicalDay.getTime();
-            // -----------------------------------------------------------
             
             let moviesToDisplay = (currentTab === 'today') 
                 ? allMoviesData.filter(m => m.startTime >= startOfTodayMs)
@@ -353,14 +366,19 @@
 
             document.getElementById('modalGenre').innerText = filteredGenres || 'Långfilm';
             
-            // VÄLJ BACKDROP I FÖRSTA HAND, ANNARS POSTER
+            // NY LOGIK FÖR BILD ELLER STJÄRNA I MODAL
             const heroImg = m.backdrop || m.image || '';
-            document.getElementById('modalPoster').src = heroImg;
-            document.getElementById('modalPoster').style.display = heroImg ? 'block' : 'none';
+            if (heroImg) {
+                document.getElementById('modalPoster').src = heroImg;
+                document.getElementById('modalPoster').style.display = 'block';
+                document.getElementById('modalPosterPlaceholder').style.display = 'none';
+            } else {
+                document.getElementById('modalPoster').style.display = 'none';
+                document.getElementById('modalPosterPlaceholder').style.display = 'flex';
+            }
             
             document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
             
-            // BYGG STRÄNG FÖR SKÅDISAR OCH REGISSÖR
             let castHtml = '';
             if (m.director) castHtml += `<strong>Regi:</strong> ${m.director}<br>`;
             if (m.actors) castHtml += `<strong>Skådespelare:</strong> ${m.actors}`;

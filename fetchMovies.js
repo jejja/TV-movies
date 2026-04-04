@@ -125,7 +125,7 @@ async function run() {
         const originalCategory = categoryMatches.join(', ');
         const catsLower = originalCategory.toLowerCase();
 
-        if (catsLower.includes("series") || catsLower.includes("serie") || catsLower.includes("documentary") || catsLower.includes("nyheter") || catsLower.includes("news") || catsLower.includes("theater") || catsLower.includes("concert")) continue;
+        if (catsLower.includes("series") || catsLower.includes("serie") || catsLower.includes("nyheter") || catsLower.includes("news") || catsLower.includes("theater") || catsLower.includes("concert")) continue;
 
         const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy"];
         const isMovie = movieKeywords.some(key => catsLower.includes(key));

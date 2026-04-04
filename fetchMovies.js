@@ -61,10 +61,16 @@ async function getMovieInfo(title) {
 
 async function run() {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    
+    // Tvinga svensk tidszon så att nattkörningar inte hämtar gårdagens EPG
+    const options = { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' };
+    const formatter = new Intl.DateTimeFormat('sv-SE', options);
+    
+    const todayStr = formatter.format(now);
+    
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowEarlyStr = tomorrow.toISOString().split('T')[0];
+    const tomorrowEarlyStr = formatter.format(tomorrow);
     
     let moviesToday = [];
     let allMovies = [];
@@ -194,7 +200,7 @@ async function run() {
         else allMovies.push(newMovie);
     }
 
-    const clearLimit = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const clearLimit = Date.now() - (7 * 24 * 60 * 60 * 1000); // Sparar 7 dagars historik
     allMovies = allMovies.filter(m => m.startTime >= clearLimit);
     allMovies.sort((a, b) => a.startTime - b.startTime);
     

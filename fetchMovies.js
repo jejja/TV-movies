@@ -140,7 +140,7 @@ async function run() {
         const originalCategory = categoryMatches.join(', ');
         const catsLower = originalCategory.toLowerCase();
 
-        const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy"];
+        const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy", "kriminal", "crime", "deckare", "mysterie", "mystery", "romantik", "romance"];
         const isMovie = movieKeywords.some(key => catsLower.includes(key));
         
         if (!isMovie) continue; // Inte en film (t.ex. Rapport). Skippa tyst!

@@ -43,7 +43,7 @@ async function getMovieInfo(title) {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
                 // Ta bort detta sen
-                console.log("tmdbDetailsRes", omdbData);
+                console.log("omdbData", omdbData);
                 if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
             }
 

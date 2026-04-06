@@ -146,7 +146,7 @@ async function run() {
         if (!isMovie) continue; // Inte en film (t.ex. Rapport). Skippa tyst!
 
         // HÅRDA exkluderingsord - Blockerar ALLTID
-        const hardExcludeKeywords = ["series", "serie", "nyheter", "news", "theater", "concert", "konsert", "musik", "music", "classical", "sport"];
+        const hardExcludeKeywords = ["series", "serie", "nyheter", "news", "theater"];
         const foundHardExclude = hardExcludeKeywords.find(key => catsLower.includes(key)); 
         
         if (foundHardExclude) {

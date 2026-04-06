@@ -20,9 +20,9 @@ async function getMovieInfo(title) {
             
             // Vi lägger till &append_to_response=credits för att få skådisar och regissör i samma anrop!
             const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}&append_to_response=credits`);
-            // Ta bort detta sen
-            console.log("tmdbDetailsRes", tmdbDetailsRes);
             const tmdbDetailsData = await tmdbDetailsRes.json();
+            // Ta bort detta sen
+            console.log("tmdbDetailsData", tmdbDetailsData);
             
             imdbId = tmdbDetailsData.imdb_id;
             const actualRuntime = tmdbDetailsData.runtime;

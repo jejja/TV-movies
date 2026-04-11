@@ -2,7 +2,7 @@ name: Uppdatera TV-Tablå
 
 on:
   schedule:
-    - cron: '0 4 * * *' # Körs kl 04:00 (UTC) varje natt
+    - cron: '0 3 * * *' # Körs kl 03:00 (UTC) varje natt
   workflow_dispatch: # Gör att vi kan köra den manuellt
 
 jobs:

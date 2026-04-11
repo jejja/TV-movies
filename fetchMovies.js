@@ -1,11 +1,12 @@
 const fs = require('fs');
 const zlib = require('zlib');
 
-const TMDB_KEY = process.env.TMDB_API_KEY;
-const OMDB_KEY = process.env.OMDB_API_KEY;
+// .trim() städar bort eventuella osynliga mellanslag eller radbrytningar från GitHub Secrets
+const TMDB_KEY = process.env.TMDB_API_KEY ? process.env.TMDB_API_KEY.trim() : null;
+const OMDB_KEY = process.env.OMDB_API_KEY ? process.env.OMDB_API_KEY.trim() : null;
 
 // ---------------------------------------------------------
-// HJÄLPUFNKTION: Hämtar all data (TMDB + OMDB) via TMDB-ID
+// HJÄLPFUNKTION: Hämtar all data (TMDB + OMDB) via TMDB-ID
 // ---------------------------------------------------------
 async function getMovieDetails(tmdbId) {
     if (!TMDB_KEY) return null;
@@ -56,7 +57,7 @@ async function getMovieDetails(tmdbId) {
     }
 }
 
-// Hjälpfunktion för Linjär-TV (som bara har titeln från EPG)
+// Hjälpfunktion för Linjär-TV
 async function getMovieInfoByTitle(title) {
     if (!TMDB_KEY) return null;
     try {
@@ -65,7 +66,6 @@ async function getMovieInfoByTitle(title) {
         const tmdbSearchData = await tmdbSearchRes.json();
 
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
-            // Skicka vidare ID:t till huvudfunktionen
             return await getMovieDetails(tmdbSearchData.results[0].id);
         }
     } catch (e) {}
@@ -204,24 +204,36 @@ async function updateTVGuide() {
 // DEL 2: SVT PLAY (svtplay.json)
 // ---------------------------------------------------------
 async function updateSVTPlay() {
-    if (!TMDB_KEY) return;
+    if (!TMDB_KEY) {
+        console.log("❌ TMDB_API_KEY saknas eller är felaktig! Hoppar över SVT Play.");
+        return;
+    }
+
     console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB ---`);
     let svtMovies = [];
 
     // Hämtar de 3 första sidorna av de populäraste filmerna (ca 60 st)
     for (let page = 1; page <= 3; page++) {
-        // TMDB Watch Provider 384 = SVT Play i Sverige
-        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=384&sort_by=popularity.desc&page=${page}`;
+        // TMDB Watch Provider 493 = SVT Play i Sverige
+        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&page=${page}`;
 
         try {
             const res = await fetch(url);
             const data = await res.json();
 
-            if (!data.results || data.results.length === 0) break;
+            // Fånga eventuella TMDB-fel (t.ex. ogiltig nyckel eller rate limit)
+            if (!res.ok) {
+                console.error(`❌ API Fel från TMDB (Status ${res.status}):`, data);
+                break;
+            }
+
+            if (!data.results || data.results.length === 0) {
+                console.log(`ℹ️ Inga fler resultat på sida ${page}.`);
+                break;
+            }
 
             for (const movie of data.results) {
                 console.log(`🎬 MATCH (SVT Play): ${movie.title}`);
-                // Vi skickar in TMDB-ID direkt! Mycket snabbare än att söka på titeln igen.
                 const details = await getMovieDetails(movie.id);
 
                 if (details) {
@@ -238,7 +250,7 @@ async function updateSVTPlay() {
                 await new Promise(r => setTimeout(r, 150));
             }
         } catch (e) {
-            console.error("Fel vid hämtning av SVT Play:", e);
+            console.error("❌ Fel vid hämtning av SVT Play:", e);
         }
     }
 

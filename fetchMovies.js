@@ -182,7 +182,7 @@ async function updateTVGuide() {
                 actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null,
                 imdbRate: movieData ? movieData.rating : null,
                 rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
-                genres: movieData ? movieData.genres : null, // Sparar ner genrerna!
+                genres: movieData ? movieData.genres : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
                 runtime: movieData ? movieData.runtime : null, date: todayStr
@@ -217,7 +217,6 @@ async function updateSVTPlay() {
     let svtMovies = [];
 
     let totalPages = 1; // Börjar med 1, uppdateras efter första anropet
-    const MAX_PAGES = 10; // Cappar på 10 sidor för att inte skriptet ska ta för evigt (ca 200 filmer)
 
     for (let page = 1; page <= totalPages; page++) {
         // ID 493 = SVT Play
@@ -236,10 +235,10 @@ async function updateSVTPlay() {
                 break;
             }
 
-            // På första rundan, uppdatera totalPages (men sätt ett max-tak)
+            // På första rundan, hämta total_pages. (TMDB tillåter max 500 sidor)
             if (page === 1) {
-                totalPages = Math.min(data.total_pages, MAX_PAGES);
-                console.log(`Hittade totalt ${data.total_pages} sidor hos TMDB. Hämtar de ${totalPages} populäraste sidorna...`);
+                totalPages = Math.min(data.total_pages, 500);
+                console.log(`Hittade totalt ${data.total_pages} sidor hos TMDB. Hämtar rubbet...`);
             }
 
             for (const movie of data.results) {
@@ -265,6 +264,7 @@ async function updateSVTPlay() {
                         runtime: details.runtime
                     });
                 }
+                // Paus på 150ms för att inte överskrida rate-limits
                 await new Promise(r => setTimeout(r, 150));
             }
         } catch (e) {

@@ -16,6 +16,7 @@
         :root { --bg: #0f0f0f; --card: #1a1a1a; --text: #ffffff; --accent: #e50914; --gray: #9ca3af; --imdb: #f5c518; --svt: #00c8a6; }
         body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom, 40px); padding-top: env(safe-area-inset-top, 0px); }
 
+        /* HEADER OCH MENY */
         .header-wrapper { display: flex; position: sticky; top: 0; background: rgba(15, 15, 15, 0.95); backdrop-filter: blur(10px); z-index: 100; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px; gap: 12px; border-bottom: 1px solid #262626; align-items: stretch; }
         .page-title { margin: 0; font-size: 20px; font-weight: 800; display: flex; align-items: center; flex: 1; padding-left: 10px; color: white; letter-spacing: -0.02em; }
         .page-title span { color: var(--svt); margin-left: 6px; }
@@ -30,6 +31,19 @@
         .menu-links a { color: white; text-decoration: none; font-size: 16px; font-weight: 600; padding: 16px 12px; background: #262626; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
         .menu-links a.active { background: var(--accent); }
 
+        /* FILTER KNAPPAR */
+        .filter-container {
+            display: flex; gap: 10px; padding: 16px 16px 0 16px; overflow-x: auto; scrollbar-width: none;
+        }
+        .filter-container::-webkit-scrollbar { display: none; }
+        .filter-btn {
+            background: #262626; color: var(--gray); border: 1px solid #333; padding: 8px 18px;
+            border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+            white-space: nowrap; transition: all 0.2s;
+        }
+        .filter-btn.active { background: var(--svt); color: black; border-color: var(--svt); }
+
+        /* KORT & LISTOR */
         .container { padding: 20px 16px 20px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
         .movie-card { background: var(--card); border-radius: 12px; overflow: hidden; transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1); cursor: pointer; position: relative; border: 1px solid #262626; }
         .movie-card:active { transform: scale(0.96); }
@@ -41,6 +55,7 @@
         .title { font-size: 14px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .meta { font-size: 12px; color: var(--gray); }
 
+        /* MODAL */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(5px); }
         .modal-content { background: var(--card); width: 100%; max-width: 450px; border-radius: 20px; position: relative; max-height: 85vh; overflow-y: auto; border: 1px solid #333; }
         .modal-hero-img { width: 100%; height: 220px; object-fit: cover; object-position: center 25%; border-top-left-radius: 20px; border-top-right-radius: 20px; display: block; -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); }
@@ -67,6 +82,12 @@
 <div class="header-wrapper">
     <h1 class="page-title">SVT Play <span>Filmer</span></h1>
     <button class="menu-btn" onclick="toggleMenu()">☰</button>
+</div>
+
+<div class="filter-container">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Alla</button>
+    <button class="filter-btn" data-filter="film" onclick="setFilter('film')">Spelfilm</button>
+    <button class="filter-btn" data-filter="documentary" onclick="setFilter('documentary')">Dokumentär</button>
 </div>
 
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
@@ -118,6 +139,8 @@
 
 <script>
     let allMoviesData = [];
+    let currentDisplayMovies = []; // Ny: Håller koll på den sorterade/filtrerade listan som faktiskt visas
+    let currentFilter = 'all';
 
     async function init() {
         try {
@@ -142,7 +165,6 @@
         const posterHTML = m.image
             ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">`
             : `<span class="poster-placeholder">⭐</span>`;
-        const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
         return `
                 <div class="movie-card" onclick="openModalByIndex(${index})">
@@ -156,17 +178,44 @@
             `;
     }
 
+    function setFilter(filterType) {
+        currentFilter = filterType;
+
+        // Uppdatera knapparnas utseende
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if(btn.dataset.filter === filterType) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        render();
+    }
+
     function render() {
         const root = document.getElementById('movie-grid');
         root.innerHTML = "";
 
-        let sortedMovies = [...allMoviesData].sort((a, b) => {
+        // 1. Filtrera listan
+        let filteredMovies = allMoviesData.filter(m => {
+            const genres = (m.genres || "").toLowerCase();
+            const isDoc = genres.includes("documentary") || genres.includes("dokumentär");
+
+            if (currentFilter === 'documentary') return isDoc;
+            if (currentFilter === 'film') return !isDoc;
+            return true; // 'all'
+        });
+
+        // 2. Sortera listan efter IMDb-betyg
+        currentDisplayMovies = [...filteredMovies].sort((a, b) => {
             const rateA = parseFloat(a.imdbRate) || 0;
             const rateB = parseFloat(b.imdbRate) || 0;
             return rateB - rateA;
         });
 
-        root.innerHTML = sortedMovies.map((m, index) => createCardHTML(m, index)).join('');
+        // 3. Rita ut korten och skicka med det aktuella array-indexet
+        root.innerHTML = currentDisplayMovies.map((m, index) => createCardHTML(m, index)).join('');
     }
 
     function toggleMenu() {
@@ -178,8 +227,8 @@
     }
 
     function openModalByIndex(index) {
-        let sortedMovies = [...allMoviesData].sort((a, b) => (parseFloat(b.imdbRate) || 0) - (parseFloat(a.imdbRate) || 0));
-        const m = sortedMovies[index];
+        // Nu letar vi säkert i den lista som faktiskt är utritad
+        const m = currentDisplayMovies[index];
         if(m) openModal(m);
     }
 

@@ -1,7 +1,6 @@
 const fs = require('fs');
 const zlib = require('zlib');
 
-// .trim() städar bort eventuella osynliga mellanslag eller radbrytningar från GitHub Secrets
 const TMDB_KEY = process.env.TMDB_API_KEY ? process.env.TMDB_API_KEY.trim() : null;
 const OMDB_KEY = process.env.OMDB_API_KEY ? process.env.OMDB_API_KEY.trim() : null;
 
@@ -25,6 +24,9 @@ async function getMovieDetails(tmdbId) {
         const poster = tmdbDetailsData.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbDetailsData.poster_path}` : null;
         const actors = tmdbDetailsData.credits?.cast ? tmdbDetailsData.credits.cast.slice(0, 3).map(a => a.name).join(', ') : null;
         const director = tmdbDetailsData.credits?.crew ? tmdbDetailsData.credits.crew.find(c => c.job === 'Director')?.name : null;
+
+        // HÄMTAR RIKTIGA GENRER
+        const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
         if (imdbId && OMDB_KEY) {
             const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
@@ -50,7 +52,8 @@ async function getMovieDetails(tmdbId) {
             runtime: actualRuntime,
             year: year,
             actors: actors,
-            director: director
+            director: director,
+            genres: genres // Skickar med genrerna
         };
     } catch (e) {
         return null;
@@ -179,6 +182,7 @@ async function updateTVGuide() {
                 actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null,
                 imdbRate: movieData ? movieData.rating : null,
                 rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
+                genres: movieData ? movieData.genres : null, // Sparar ner genrerna!
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
                 runtime: movieData ? movieData.runtime : null, date: todayStr
@@ -212,36 +216,50 @@ async function updateSVTPlay() {
     console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB ---`);
     let svtMovies = [];
 
-    // Hämtar de 3 första sidorna av de populäraste filmerna (ca 60 st)
-    for (let page = 1; page <= 3; page++) {
-        // TMDB Watch Provider 493 = SVT Play i Sverige
+    let totalPages = 1; // Börjar med 1, uppdateras efter första anropet
+    const MAX_PAGES = 10; // Cappar på 10 sidor för att inte skriptet ska ta för evigt (ca 200 filmer)
+
+    for (let page = 1; page <= totalPages; page++) {
+        // ID 493 = SVT Play
         const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&page=${page}`;
 
         try {
             const res = await fetch(url);
             const data = await res.json();
 
-            // Fånga eventuella TMDB-fel (t.ex. ogiltig nyckel eller rate limit)
             if (!res.ok) {
                 console.error(`❌ API Fel från TMDB (Status ${res.status}):`, data);
                 break;
             }
 
             if (!data.results || data.results.length === 0) {
-                console.log(`ℹ️ Inga fler resultat på sida ${page}.`);
                 break;
             }
 
+            // På första rundan, uppdatera totalPages (men sätt ett max-tak)
+            if (page === 1) {
+                totalPages = Math.min(data.total_pages, MAX_PAGES);
+                console.log(`Hittade totalt ${data.total_pages} sidor hos TMDB. Hämtar de ${totalPages} populäraste sidorna...`);
+            }
+
             for (const movie of data.results) {
-                console.log(`🎬 MATCH (SVT Play): ${movie.title}`);
+                console.log(`🎬 MATCH (SVT Play, Sida ${page}/${totalPages}): ${movie.title}`);
                 const details = await getMovieDetails(movie.id);
 
                 if (details) {
                     svtMovies.push({
-                        title: movie.title, originalCategory: "SVT Play, Film", channel: "SVT Play",
-                        image: details.poster, backdrop: details.backdrop, year: details.year,
-                        actors: details.actors, director: details.director,
-                        imdbRate: details.rating, rottenRate: details.rottenRate, metaRate: details.metaRate,
+                        title: movie.title,
+                        originalCategory: "SVT Play",
+                        channel: "SVT Play",
+                        image: details.poster,
+                        backdrop: details.backdrop,
+                        year: details.year,
+                        actors: details.actors,
+                        director: details.director,
+                        imdbRate: details.rating,
+                        rottenRate: details.rottenRate,
+                        metaRate: details.metaRate,
+                        genres: details.genres,
                         desc: details.desc || movie.overview,
                         imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
                         runtime: details.runtime

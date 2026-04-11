@@ -41,7 +41,8 @@
             padding-top: env(safe-area-inset-top, 0px);
         }
 
-        .tabs {
+        /* HEADER OCH MENY */
+        .header-wrapper {
             display: flex;
             position: sticky;
             top: 0;
@@ -51,7 +52,15 @@
             padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px;
             gap: 12px;
             border-bottom: 1px solid #262626;
+            align-items: stretch;
         }
+
+        .tabs {
+            display: flex;
+            flex: 1;
+            gap: 12px;
+        }
+
         .tab {
             flex: 1;
             padding: 10px;
@@ -62,9 +71,73 @@
             font-weight: 600;
             font-size: 14px;
             cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         .tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3); }
 
+        .tab small {
+            display: block;
+            font-size: 10px;
+            font-weight: 400;
+            margin-top: 2px;
+            opacity: 0.8;
+        }
+
+        .menu-btn {
+            background: #262626;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 0 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .menu-btn:active { background: #333; }
+
+        .side-menu {
+            position: fixed;
+            top: 0; right: -280px;
+            width: 280px; height: 100%;
+            background: var(--card);
+            z-index: 2000;
+            transition: right 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+            padding: calc(20px + env(safe-area-inset-top, 0px)) 24px;
+            border-left: 1px solid #333;
+        }
+        .side-menu.open { right: 0; }
+
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(3px);
+            z-index: 1999;
+        }
+        .menu-close {
+            background: #262626; border: none; color: white;
+            font-size: 24px; cursor: pointer; float: right;
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .menu-links {
+            clear: both; display: flex; flex-direction: column; gap: 10px; margin-top: 50px;
+        }
+        .menu-links a {
+            color: white; text-decoration: none; font-size: 16px; font-weight: 600;
+            padding: 16px 12px; background: #262626; border-radius: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .menu-links a.active { background: var(--accent); }
+
+        /* KORT & LISTOR */
         .section-title {
             font-weight: 800;
             font-size: 18px;
@@ -128,7 +201,7 @@
         }
         .meta { font-size: 12px; color: var(--gray); }
 
-        /* Modal */
+        /* MODAL */
         .modal {
             display: none;
             position: fixed;
@@ -199,7 +272,6 @@
         .modal-rating { color: var(--imdb); font-weight: 800; font-size: 20px; }
         .modal-desc { color: #d1d5db; line-height: 1.6; font-size: 15px; margin: 18px 0; }
 
-        /* NYA STILAR FÖR RT OCH METACRITIC */
         .extra-ratings {
             display: flex;
             gap: 15px;
@@ -226,9 +298,24 @@
 </head>
 <body>
 
-<div class="tabs">
-    <button class="tab active" onclick="switchTab('today')">IDAG</button>
-    <button class="tab" onclick="switchTab('history')">ARKIV</button>
+<div class="header-wrapper">
+    <div class="tabs">
+        <button id="tab-today" class="tab active" onclick="switchTab('today')">IDAG</button>
+        <button id="tab-history" class="tab" onclick="switchTab('history')">
+            ARKIV
+            <small>Senaste 7 dagarna</small>
+        </button>
+    </div>
+    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+</div>
+
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+<div id="sideMenu" class="side-menu">
+    <button class="menu-close" onclick="toggleMenu()">✕</button>
+    <div class="menu-links">
+        <a href="index.html" class="active">TV-tablå <span>📺</span></a>
+        <a href="svtplay.html">SVT Play <span>▶️</span></a>
+    </div>
 </div>
 
 <div id="movie-grid"></div>
@@ -367,8 +454,25 @@
 
     function switchTab(tab) {
         currentTab = tab;
-        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.innerText.toLowerCase() === (tab === 'today' ? 'idag' : 'arkiv')));
+        document.getElementById('tab-today').classList.toggle('active', tab === 'today');
+        document.getElementById('tab-history').classList.toggle('active', tab === 'history');
         render();
+    }
+
+    function toggleMenu() {
+        const menu = document.getElementById('sideMenu');
+        const overlay = document.getElementById('menuOverlay');
+        const isOpen = menu.classList.contains('open');
+
+        if (isOpen) {
+            menu.classList.remove('open');
+            overlay.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        } else {
+            menu.classList.add('open');
+            overlay.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     function openModalById(idMatch) {
@@ -382,7 +486,6 @@
         document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
         document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '★ -';
 
-        // Hantera Rotten Tomatoes
         if (m.rottenRate) {
             document.getElementById('rtWrap').style.display = 'flex';
             document.getElementById('modalRotten').innerText = m.rottenRate;
@@ -390,22 +493,20 @@
             document.getElementById('rtWrap').style.display = 'none';
         }
 
-        // Hantera Metacritic
         if (m.metaRate) {
             document.getElementById('mcWrap').style.display = 'flex';
             document.getElementById('modalMetacritic').innerText = m.metaRate;
 
-            // Ändra färg på Metacritic-boxen baserat på poäng
             const mcScore = parseInt(m.metaRate);
             const mcIcon = document.getElementById('modalMetaIcon');
             if (mcScore >= 61) {
-                mcIcon.style.background = '#66cc33'; // Grön
+                mcIcon.style.background = '#66cc33';
                 mcIcon.style.color = 'black';
             } else if (mcScore >= 40) {
-                mcIcon.style.background = '#ffcc33'; // Gul
+                mcIcon.style.background = '#ffcc33';
                 mcIcon.style.color = 'black';
             } else {
-                mcIcon.style.background = '#ff0000'; // Röd
+                mcIcon.style.background = '#ff0000';
                 mcIcon.style.color = 'white';
             }
         } else {

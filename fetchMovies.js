@@ -7,51 +7,49 @@ const OMDB_KEY = process.env.OMDB_API_KEY;
 async function getMovieInfo(title) {
     if (!TMDB_KEY) return null;
     try {
-        // Tvingar apostrofer att URL-kodas för att inte bryta TMDB-anropet
         const safeTitle = encodeURIComponent(title).replace(/'/g, "%27");
-        
         const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${safeTitle}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
-        
+
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
             const movie = tmdbSearchData.results[0];
             let imdbRating = null;
+            let rottenRating = null; // Ny
+            let metaRating = null;   // Ny
             let imdbId = null;
-            
-            // Vi lägger till &append_to_response=credits för att få skådisar och regissör i samma anrop!
+
             const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${movie.id}?api_key=${TMDB_KEY}&append_to_response=credits`);
             const tmdbDetailsData = await tmdbDetailsRes.json();
-            // Ta bort detta sen
-            console.log("tmdbDetailsData", tmdbDetailsData);
-            
+
             imdbId = tmdbDetailsData.imdb_id;
             const actualRuntime = tmdbDetailsData.runtime;
-            
-            // Plocka ut årtal (de första 4 tecknen i "YYYY-MM-DD")
             const year = tmdbDetailsData.release_date ? tmdbDetailsData.release_date.substring(0, 4) : null;
-            
-            // Plocka ut en bred bakgrundsbild (backdrop)
             const backdrop = tmdbDetailsData.backdrop_path ? `https://image.tmdb.org/t/p/w1280${tmdbDetailsData.backdrop_path}` : null;
-            
-            // Plocka ut de 3 främsta skådespelarna
             const actors = tmdbDetailsData.credits?.cast ? tmdbDetailsData.credits.cast.slice(0, 3).map(a => a.name).join(', ') : null;
-            
-            // Leta upp regissören
             const director = tmdbDetailsData.credits?.crew ? tmdbDetailsData.credits.crew.find(c => c.job === 'Director')?.name : null;
 
             if (imdbId && OMDB_KEY) {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
-                // Ta bort detta sen
-                console.log("omdbData", omdbData);
+
                 if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
+
+                // Hämta Rotten Tomatoes och Metacritic från Ratings-arrayen
+                if (omdbData.Ratings) {
+                    const rt = omdbData.Ratings.find(r => r.Source === "Rotten Tomatoes");
+                    const mc = omdbData.Ratings.find(r => r.Source === "Metacritic");
+                    if (rt) rottenRating = rt.Value;
+                    if (mc) metaRating = mc.Value;
+                }
             }
 
             return {
                 poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
-                backdrop: backdrop, // Vår nya snygga bild!
+                backdrop: backdrop,
                 desc: movie.overview || null,
-                rating: imdbRating || null, // Sparar BARA riktiga IMDb-betyg nu, inga TMDB-10:or!
+                rating: imdbRating || null,
+                rottenRate: rottenRating, // Ny
+                metaRate: metaRating,     // Ny
                 imdbId: imdbId,
                 runtime: actualRuntime,
                 year: year,
@@ -216,6 +214,8 @@ async function run() {
                 actors: movieData ? movieData.actors : null, 
                 director: movieData ? movieData.director : null, 
                 imdbRate: movieData ? movieData.rating : null,
+                rottenRate: movieData ? movieData.rottenRate : null,
+                metaRate: movieData ? movieData.metaRate : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
                 runtime: movieData ? movieData.runtime : null, 

@@ -226,7 +226,7 @@ async function updateSVTPlay() {
     let totalPages = 1;
 
     for (let page = 1; page <= totalPages; page++) {
-        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=1000&page=${page}`;
+        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=50&page=${page}`;
 
         try {
             const res = await fetch(url);

@@ -28,7 +28,6 @@ async function getMovieDetails(tmdbId) {
         const language = tmdbDetailsData.original_language || null;
         const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
-        // Frågar OMDb för att hämta IMDb-betyg, Rotten Tomatoes och Metacritic
         if (imdbId && OMDB_KEY) {
             try {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
@@ -42,7 +41,7 @@ async function getMovieDetails(tmdbId) {
                     if (mc) metaRating = mc.Value;
                 }
             } catch (err) {
-                // Tyst felhantering om OMDb bråkar
+                // Tyst felhantering
             }
         }
 
@@ -66,7 +65,6 @@ async function getMovieDetails(tmdbId) {
     }
 }
 
-// Hjälpfunktion för Linjär-TV
 async function getMovieInfoByTitle(title) {
     if (!TMDB_KEY) return null;
     try {
@@ -216,76 +214,87 @@ async function updateTVGuide() {
 // ---------------------------------------------------------
 async function updateSVTPlay() {
     if (!TMDB_KEY) {
-        console.log("❌ TMDB_API_KEY saknas eller är felaktig! Hoppar över SVT Play.");
+        console.log("❌ TMDB_API_KEY saknas!");
         return;
     }
 
-    console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB ---`);
+    console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB (2-stegs-sökning) ---`);
     let svtMovies = [];
+    let seenIds = new Set(); // Förhindrar att en dokumentär laddas ner två gånger
 
-    let totalPages = 1;
+    // Här definierar vi våra två separata anrop till TMDB
+    const queries = [
+        {
+            name: "Spelfilmer",
+            // 50 min +, MINST 50 röster, exkludera dokumentärer (99) och musik (10402)
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=50&without_genres=99,10402&page=`
+        },
+        {
+            name: "Dokumentärer",
+            // 50 min +, MÅSTE vara dokumentär (99), INGET röstkrav!
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=99&page=`
+        }
+    ];
 
-    for (let page = 1; page <= totalPages; page++) {
-        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=50&page=${page}`;
+    for (const query of queries) {
+        console.log(`\n🔎 Startar sökning: ${query.name}`);
+        let totalPages = 1;
 
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
+        for (let page = 1; page <= totalPages; page++) {
+            try {
+                const res = await fetch(query.url + page);
+                const data = await res.json();
 
-            if (!res.ok) {
-                console.error(`❌ API Fel från TMDB (Status ${res.status}):`, data);
-                break;
-            }
+                if (!res.ok || !data.results || data.results.length === 0) break;
 
-            if (!data.results || data.results.length === 0) {
-                break;
-            }
-
-            if (page === 1) {
-                // TMDB tillåter max page 500. Utöver det kraschar API:et.
-                totalPages = Math.min(data.total_pages, 500);
-                console.log(`Hittade totalt ${data.total_pages} sidor hos TMDB. Hämtar alla tillåtna...`);
-            }
-
-            for (const movie of data.results) {
-                console.log(`🎬 MATCH (SVT Play, Sida ${page}/${totalPages}): ${movie.title}`);
-                const details = await getMovieDetails(movie.id);
-
-                if (details) {
-                    // NYTT: Kasta filmer som helt saknar genre hos TMDB
-                    if (!details.genres || details.genres.trim() === "") {
-                        console.log(`⏩ Hoppar över: ${movie.title} (TMDB saknar genredata)`);
-                        continue;
-                    }
-
-                    svtMovies.push({
-                        title: movie.title,
-                        originalCategory: "SVT Play",
-                        channel: "SVT Play",
-                        image: details.poster,
-                        backdrop: details.backdrop,
-                        year: details.year,
-                        actors: details.actors,
-                        director: details.director,
-                        imdbRate: details.rating,
-                        rottenRate: details.rottenRate,
-                        metaRate: details.metaRate,
-                        genres: details.genres,
-                        language: details.language,
-                        desc: details.desc || movie.overview,
-                        imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
-                        runtime: details.runtime
-                    });
+                if (page === 1) {
+                    totalPages = Math.min(data.total_pages, 100); // Säkert tak per kategori
+                    console.log(`Hittade ${data.total_pages} sidor för ${query.name}. Hämtar...`);
                 }
-                await new Promise(r => setTimeout(r, 150));
+
+                for (const movie of data.results) {
+                    // Kolla om vi redan lagt in filmen
+                    if (seenIds.has(movie.id)) continue;
+                    seenIds.add(movie.id);
+
+                    console.log(`🎬 MATCH (${query.name}, Sida ${page}/${totalPages}): ${movie.title}`);
+                    const details = await getMovieDetails(movie.id);
+
+                    if (details) {
+                        if (!details.genres || details.genres.trim() === "") {
+                            console.log(`⏩ Hoppar över: ${movie.title} (Saknar genre)`);
+                            continue;
+                        }
+
+                        svtMovies.push({
+                            title: movie.title,
+                            originalCategory: "SVT Play",
+                            channel: "SVT Play",
+                            image: details.poster,
+                            backdrop: details.backdrop,
+                            year: details.year,
+                            actors: details.actors,
+                            director: details.director,
+                            imdbRate: details.rating,
+                            rottenRate: details.rottenRate,
+                            metaRate: details.metaRate,
+                            genres: details.genres,
+                            language: details.language,
+                            desc: details.desc || movie.overview,
+                            imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
+                            runtime: details.runtime
+                        });
+                    }
+                    await new Promise(r => setTimeout(r, 150));
+                }
+            } catch (e) {
+                console.error(`❌ Fel vid hämtning av ${query.name}:`, e);
             }
-        } catch (e) {
-            console.error("❌ Fel vid hämtning av SVT Play:", e);
         }
     }
 
     fs.writeFileSync('svtplay.json', JSON.stringify(svtMovies, null, 2));
-    console.log(`✅ KLART! Sparade ${svtMovies.length} kurerade filmer i svtplay.json.`);
+    console.log(`✅ KLART! Sparade ${svtMovies.length} noggrant utvalda filmer i svtplay.json.`);
 }
 
 // ---------------------------------------------------------

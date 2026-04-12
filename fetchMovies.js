@@ -4,9 +4,6 @@ const zlib = require('zlib');
 const TMDB_KEY = process.env.TMDB_API_KEY ? process.env.TMDB_API_KEY.trim() : null;
 const OMDB_KEY = process.env.OMDB_API_KEY ? process.env.OMDB_API_KEY.trim() : null;
 
-// ---------------------------------------------------------
-// HJÄLPFUNKTION: Hämtar all data (TMDB + OMDB) via TMDB-ID
-// ---------------------------------------------------------
 async function getMovieDetails(tmdbId) {
     if (!TMDB_KEY) return null;
     try {
@@ -40,29 +37,15 @@ async function getMovieDetails(tmdbId) {
                     if (rt) rottenRating = rt.Value;
                     if (mc) metaRating = mc.Value;
                 }
-            } catch (err) {
-                // Tyst felhantering
-            }
+            } catch (err) {}
         }
 
         return {
-            poster: poster,
-            backdrop: backdrop,
-            desc: tmdbDetailsData.overview || null,
-            rating: imdbRating,
-            rottenRate: rottenRating,
-            metaRate: metaRating,
-            imdbId: imdbId,
-            runtime: actualRuntime,
-            year: year,
-            actors: actors,
-            director: director,
-            genres: genres,
-            language: language
+            poster, backdrop, desc: tmdbDetailsData.overview || null,
+            rating: imdbRating, rottenRate: rottenRating, metaRate: metaRating,
+            imdbId, runtime: actualRuntime, year, actors, director, genres, language
         };
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 async function getMovieInfoByTitle(title) {
@@ -71,7 +54,6 @@ async function getMovieInfoByTitle(title) {
         const safeTitle = encodeURIComponent(title).replace(/'/g, "%27");
         const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${safeTitle}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
-
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
             return await getMovieDetails(tmdbSearchData.results[0].id);
         }
@@ -79,9 +61,7 @@ async function getMovieInfoByTitle(title) {
     return null;
 }
 
-// ---------------------------------------------------------
-// DEL 1: TV-TABLÅN (movies.json)
-// ---------------------------------------------------------
+// updateTVGuide lämnas intakt...
 async function updateTVGuide() {
     const now = new Date();
     const options = { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' };
@@ -210,69 +190,59 @@ async function updateTVGuide() {
 }
 
 // ---------------------------------------------------------
-// DEL 2: SVT PLAY (svtplay.json)
+// DEL 2: SVT PLAY (svtplay.json) med UPSERT-logik
 // ---------------------------------------------------------
 async function updateSVTPlay() {
-    if (!TMDB_KEY) {
-        console.log("❌ TMDB_API_KEY saknas!");
-        return;
-    }
+    if (!TMDB_KEY) return;
 
-    console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB (3-stegs-sökning) ---`);
-    let svtMovies = [];
-    let seenIds = new Set(); // Förhindrar att en musikdokumentär laddas ner två gånger
+    const todayISO = new Date().toISOString().split('T')[0];
+    console.log(`\n▶️ --- Synkar SVT Play (Upsert) ---`);
 
-    // Nu har vi tre separata anrop till TMDB
-    const queries = [
-        {
-            name: "Spelfilmer",
-            // Spelfilm: Minst 50 minuter, minst 60 röster. Inga dokumentärer/musik.
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=60&vote_count.gte=20&without_genres=99,10402&page=`
-        },
-        {
-            name: "Dokumentärer",
-            // Dokumentär: Minst 25 minuter
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=25&with_genres=99&page=`
-        },
-        {
-            name: "Musik & Konsert",
-            // Musik: Minst 50 minuter
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=10402&page=`
+    // 1. Läs in gammal data för att jämföra
+    let existingMovies = [];
+    try {
+        if (fs.existsSync('svtplay.json')) {
+            existingMovies = JSON.parse(fs.readFileSync('svtplay.json', 'utf-8'));
         }
+    } catch (e) {}
+
+    let currentSweepIds = new Set();
+    let newOrUpdatedList = [];
+
+    const queries = [
+        { name: "Spelfilmer", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=60&vote_count.gte=20&without_genres=99,10402&page=` },
+        { name: "Dokumentärer", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=25&with_genres=99&page=` },
+        { name: "Musik", url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=10402&page=` }
     ];
 
-    for (const query of queries) {
-        console.log(`\n🔎 Startar sökning: ${query.name}`);
+    for (const q of queries) {
         let totalPages = 1;
-
         for (let page = 1; page <= totalPages; page++) {
-            try {
-                const res = await fetch(query.url + page);
-                const data = await res.json();
+            const res = await fetch(q.url + page);
+            const data = await res.json();
+            if (!res.ok || !data.results) break;
+            if (page === 1) totalPages = Math.min(data.total_pages, 10);
 
-                if (!res.ok || !data.results || data.results.length === 0) break;
+            for (const movie of data.results) {
+                if (currentSweepIds.has(movie.id)) continue;
+                currentSweepIds.add(movie.id);
 
-                if (page === 1) {
-                    totalPages = Math.min(data.total_pages, 100);
-                    console.log(`Hittade ${data.total_pages} sidor för ${query.name}. Hämtar...`);
-                }
+                // 2. Kolla om vi redan har filmen
+                let existing = existingMovies.find(m => m.tmdbId === movie.id || (m.title === movie.title && m.year === movie.release_date?.substring(0,4)));
 
-                for (const movie of data.results) {
-                    if (seenIds.has(movie.id)) continue;
-                    seenIds.add(movie.id);
-
-                    console.log(`🎬 MATCH (${query.name}, Sida ${page}/${totalPages}): ${movie.title}`);
+                if (existing) {
+                    // Vi har den! Behåll gammalt addedDate och betyg.
+                    console.log(`♻️  Behåller: ${movie.title}`);
+                    existing.stillPresent = true; // Markera att den fortfarande finns kvar på SVT
+                    newOrUpdatedList.push(existing);
+                } else {
+                    // 3. Ny film! Hämta ALL data (TMDB + OMDB)
+                    console.log(`✨ NY FILM: ${movie.title}`);
                     const details = await getMovieDetails(movie.id);
-
-                    if (details) {
-                        if (!details.genres || details.genres.trim() === "") {
-                            console.log(`⏩ Hoppar över: ${movie.title} (Saknar genre)`);
-                            continue;
-                        }
-
-                        svtMovies.push({
+                    if (details && details.genres) {
+                        newOrUpdatedList.push({
+                            tmdbId: movie.id,
                             title: movie.title,
-                            originalCategory: "SVT Play",
                             channel: "SVT Play",
                             image: details.poster,
                             backdrop: details.backdrop,
@@ -286,27 +256,35 @@ async function updateSVTPlay() {
                             language: details.language,
                             desc: details.desc || movie.overview,
                             imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
-                            runtime: details.runtime
+                            runtime: details.runtime,
+                            addedDate: todayISO, // Sparar när den lades till första gången
+                            stillPresent: true
                         });
+                        await new Promise(r => setTimeout(r, 200)); // Snäll mot API
                     }
-                    await new Promise(r => setTimeout(r, 150));
                 }
-            } catch (e) {
-                console.error(`❌ Fel vid hämtning av ${query.name}:`, e);
             }
         }
     }
 
-    fs.writeFileSync('svtplay.json', JSON.stringify(svtMovies, null, 2));
-    console.log(`✅ KLART! Sparade ${svtMovies.length} noggrant utvalda filmer i svtplay.json.`);
+    // 4. Städa bort filmer som inte längre finns på SVT Play
+    // SÄKERHETSBRYTARE: Om vi hittade färre än 50 filmer totalt, gör inget (TMDB kan ha hicka)
+    if (newOrUpdatedList.length < 50) {
+        console.log("⚠️  Varning: Hittade misstänkt få filmer. Avbryter städning för att inte tömma listan.");
+        return;
+    }
+
+    // Vi sparar bara de som markerats som "stillPresent"
+    const finalData = newOrUpdatedList.filter(m => m.stillPresent);
+    // Ta bort temp-flaggan innan vi sparar
+    finalData.forEach(m => delete m.stillPresent);
+
+    fs.writeFileSync('svtplay.json', JSON.stringify(finalData, null, 2));
+    console.log(`✅ Synk klar! Totalt ${finalData.length} filmer i biblioteket.`);
 }
 
-// ---------------------------------------------------------
-// KÖR ALLT
-// ---------------------------------------------------------
 async function runAll() {
     await updateTVGuide();
     await updateSVTPlay();
 }
-
 runAll();

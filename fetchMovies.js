@@ -231,12 +231,12 @@ async function updateSVTPlay() {
         },
         {
             name: "Dokumentärer",
-            // Dokumentär: Minst 50 minuter, minst 5 röster (rensar bort noll-betygs-skräpet!)
+            // Dokumentär: Minst 25 minuter
             url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=25&with_genres=99&page=`
         },
         {
             name: "Musik & Konsert",
-            // Musik: Minst 50 minuter, minst 2 röster.
+            // Musik: Minst 50 minuter
             url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=10402&page=`
         }
     ];

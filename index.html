@@ -11,59 +11,7 @@
     <title>Filmguiden 🍿</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
-    <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        :root { --bg: #0f0f0f; --card: #1a1a1a; --text: #ffffff; --accent: #e50914; --gray: #9ca3af; --imdb: #f5c518; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom, 40px); padding-top: env(safe-area-inset-top, 0px); }
-
-        .header-wrapper { display: flex; position: sticky; top: 0; background: rgba(15, 15, 15, 0.95); backdrop-filter: blur(10px); z-index: 100; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px; gap: 12px; border-bottom: 1px solid #262626; align-items: stretch; }
-        .tabs { display: flex; flex: 1; gap: 12px; }
-        .tab { flex: 1; padding: 10px; border: none; background: #262626; color: var(--gray); border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3); }
-        .tab small { display: block; font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.8; }
-
-        .menu-btn { background: #262626; border: none; color: white; font-size: 22px; cursor: pointer; padding: 0 16px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-        .menu-btn:active { background: #333; }
-        .side-menu { position: fixed; top: 0; right: -280px; width: 280px; height: 100%; background: var(--card); z-index: 2000; transition: right 0.3s cubic-bezier(0.2, 0, 0.2, 1); padding: calc(20px + env(safe-area-inset-top, 0px)) 24px; border-left: 1px solid #333; }
-        .side-menu.open { right: 0; }
-        .menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); z-index: 1999; }
-        .menu-close { background: #262626; border: none; color: white; font-size: 24px; cursor: pointer; float: right; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .menu-links { clear: both; display: flex; flex-direction: column; gap: 10px; margin-top: 50px; }
-        .menu-links a { color: white; text-decoration: none; font-size: 16px; font-weight: 600; padding: 16px 12px; background: #262626; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .menu-links a.active { background: var(--accent); }
-
-        .section-title { font-weight: 800; font-size: 18px; margin: 30px 16px 12px 16px; color: white; letter-spacing: -0.02em; }
-        .container { padding: 0 16px 20px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
-        .movie-card { background: var(--card); border-radius: 12px; overflow: hidden; transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1); cursor: pointer; position: relative; border: 1px solid #262626; }
-        .movie-card:active { transform: scale(0.96); }
-        .poster-container { width: 100%; aspect-ratio: 2/3; position: relative; background: #262626; display: flex; align-items: center; justify-content: center; }
-        .poster { width: 100%; height: 100%; object-fit: cover; }
-        .poster-placeholder { font-size: 40px; filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4)); }
-        .imdb-badge { position: absolute; top: 8px; right: 8px; background: var(--imdb); color: black; padding: 3px 6px; border-radius: 6px; font-size: 11px; font-weight: 800; z-index: 2; }
-        .info { padding: 12px; }
-        .title { font-size: 14px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .meta { font-size: 12px; color: var(--gray); }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(5px); }
-        .modal-content { background: var(--card); width: 100%; max-width: 450px; border-radius: 20px; position: relative; max-height: 85vh; overflow-y: auto; border: 1px solid #333; }
-        .modal-hero-img { width: 100%; height: 220px; object-fit: cover; object-position: center 25%; border-top-left-radius: 20px; border-top-right-radius: 20px; display: block; -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); }
-        .modal-hero-placeholder { width: 100%; height: 220px; background: #262626; display: none; align-items: center; justify-content: center; font-size: 70px; border-top-left-radius: 20px; border-top-right-radius: 20px; filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4)); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); }
-        .modal-body { padding: 0 24px 24px 24px; position: relative; margin-top: -30px; }
-        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 28px; color: white; cursor: pointer; z-index: 10; background: rgba(0,0,0,0.6); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .modal-genre { color: var(--accent); font-weight: 600; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
-        .modal-title-wrap { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-        .modal-rating { color: var(--imdb); font-weight: 800; font-size: 20px; }
-        .modal-desc { color: #d1d5db; line-height: 1.6; font-size: 15px; margin: 18px 0; }
-
-        .extra-ratings { display: flex; gap: 15px; margin-top: 5px; font-size: 13px; font-weight: 600; }
-        .rating-item { display: flex; align-items: center; gap: 5px; }
-        .rt-icon { color: #FA320A; font-size: 15px;}
-        .mc-icon { background: #66cc33; color: black; padding: 1px 4px; border-radius: 3px; font-size: 11px; font-weight: 800; }
-
-        .footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 11px; }
-        .footer a { color: white; text-decoration: none; font-weight: 600; }
-        .empty-channel { grid-column: 1 / -1; padding: 30px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 12px; text-align: center; color: var(--gray); font-size: 13px; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -82,7 +30,7 @@
 <div id="sideMenu" class="side-menu">
     <button class="menu-close" onclick="toggleMenu()">✕</button>
     <div class="menu-links">
-        <a href="index.html" class="active">TV-tablån <span>📺</span></a>
+        <a href="index.html" class="active">TV-tablå <span>📺</span></a>
         <a href="svtplay.html">SVT Play <span>▶️</span></a>
     </div>
 </div>
@@ -97,17 +45,14 @@
 <div id="movieModal" class="modal" onclick="closeModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
         <span class="close-btn" onclick="closeModal(event)">×</span>
-
         <img id="modalPoster" class="modal-hero-img">
         <div id="modalPosterPlaceholder" class="modal-hero-placeholder">⭐</div>
-
         <div class="modal-body">
             <div id="modalGenre" class="modal-genre"></div>
             <div class="modal-title-wrap">
                 <h2 id="modalTitle" style="margin: 0; letter-spacing: -0.03em;"></h2>
                 <span id="modalRating" class="modal-rating"></span>
             </div>
-
             <div class="extra-ratings" id="modalExtraRatings">
                 <div class="rating-item" id="rtWrap">
                     <span class="rt-icon">🍅</span> <span id="modalRotten"></span>
@@ -116,7 +61,6 @@
                     <span id="modalMetaIcon" class="mc-icon">M</span> <span id="modalMetacritic"></span>
                 </div>
             </div>
-
             <div id="modalMeta" class="meta" style="margin-top: 10px;"></div>
             <div id="modalCast" style="font-size: 13px; color: #9ca3af; margin-top: 12px; line-height: 1.4;"></div>
             <p id="modalDesc" class="modal-desc"></p>
@@ -124,6 +68,8 @@
         </div>
     </div>
 </div>
+
+<script src="app.js"></script>
 
 <script>
     let currentTab = 'today';
@@ -137,47 +83,25 @@
         } catch (e) { console.error(e); }
     }
 
-    function getDurationText(m) {
-        if (m.runtime && m.runtime > 0) {
-            const hours = Math.floor(m.runtime / 60);
-            const mins = m.runtime % 60;
-            return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-        }
-        if (!m.startTime || !m.endTime) return "";
-        const diffMs = m.endTime - m.startTime;
-        if (diffMs <= 0) return "";
-        const totalMins = Math.floor(diffMs / 60000);
-        const hours = Math.floor(totalMins / 60);
-        const mins = totalMins % 60;
-        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-    }
-
     function createCardHTML(m) {
         const dateObj = new Date(m.startTime);
         const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
         const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
-        const durationStr = getDurationText(m);
-
-        const metaHTML = currentTab === 'today'
-            ? `Idag ${timeStr} • ${durationStr}`
-            : `${dateStr} • ${m.channel} • ${durationStr}`;
-
-        const posterHTML = m.image
-            ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">`
-            : `<span class="poster-placeholder">⭐</span>`;
-
+        const durationStr = getDurationText(m); // Kallar på app.js
+        const metaHTML = currentTab === 'today' ? `Idag ${timeStr} • ${durationStr}` : `${dateStr} • ${m.channel} • ${durationStr}`;
+        const posterHTML = m.image ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">` : `<span class="poster-placeholder">⭐</span>`;
         const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
         return `
-                <div class="movie-card" onclick="openModalById('${m.startTime}-${safeTitle}')">
-                    ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
-                    <div class="poster-container">${posterHTML}</div>
-                    <div class="info">
-                        <div class="title">${m.title}</div>
-                        <div class="meta">${metaHTML}</div>
-                    </div>
+            <div class="movie-card" onclick="openModalById('${m.startTime}-${safeTitle}')">
+                ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                <div class="poster-container">${posterHTML}</div>
+                <div class="info">
+                    <div class="title">${m.title}</div>
+                    <div class="meta">${metaHTML}</div>
                 </div>
-            `;
+            </div>
+        `;
     }
 
     function render() {
@@ -198,9 +122,9 @@
             topMovies.sort((a, b) => parseFloat(b.imdbRate) - parseFloat(a.imdbRate));
             const topSection = document.createElement('div');
             topSection.innerHTML = `
-                    <h2 class="section-title">⭐ Bäst på IMDb (7.0+)</h2>
-                    <div class="container">${topMovies.map(m => createCardHTML(m)).join('')}</div>
-                `;
+                <h2 class="section-title">⭐ Bäst på IMDb (7.0+)</h2>
+                <div class="container" style="padding-top:0;">${topMovies.map(m => createCardHTML(m)).join('')}</div>
+            `;
             root.appendChild(topSection);
         }
 
@@ -212,9 +136,9 @@
 
             const chSection = document.createElement('div');
             chSection.innerHTML = `
-                    <h2 class="section-title">📺 ${ch}</h2>
-                    <div class="container">${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer planerade</div>'}</div>
-                `;
+                <h2 class="section-title">📺 ${ch}</h2>
+                <div class="container" style="padding-top:0;">${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer planerade</div>'}</div>
+            `;
             root.appendChild(chSection);
         });
     }
@@ -226,90 +150,12 @@
         render();
     }
 
-    function toggleMenu() {
-        const menu = document.getElementById('sideMenu');
-        const overlay = document.getElementById('menuOverlay');
-        const isOpen = menu.classList.contains('open');
-        if (isOpen) { menu.classList.remove('open'); overlay.style.display = 'none'; document.body.style.overflow = 'auto'; }
-        else { menu.classList.add('open'); overlay.style.display = 'block'; document.body.style.overflow = 'hidden'; }
-    }
-
     function openModalById(idMatch) {
         const [startTime, ...titleParts] = idMatch.split('-');
         const title = titleParts.join('-');
         const m = allMoviesData.find(x => x.startTime.toString() === startTime && x.title === title);
-        if(m) openModal(m);
+        if(m) openSharedModal(m, 'tv'); // Kallar på gemensam modal-funktion i app.js
     }
-
-    function openModal(m) {
-        document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
-        document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '★ -';
-
-        if (m.rottenRate) { document.getElementById('rtWrap').style.display = 'flex'; document.getElementById('modalRotten').innerText = m.rottenRate; }
-        else { document.getElementById('rtWrap').style.display = 'none'; }
-
-        if (m.metaRate) {
-            document.getElementById('mcWrap').style.display = 'flex';
-            document.getElementById('modalMetacritic').innerText = m.metaRate;
-            const mcScore = parseInt(m.metaRate);
-            const mcIcon = document.getElementById('modalMetaIcon');
-            if (mcScore >= 61) { mcIcon.style.background = '#66cc33'; mcIcon.style.color = 'black'; }
-            else if (mcScore >= 40) { mcIcon.style.background = '#ffcc33'; mcIcon.style.color = 'black'; }
-            else { mcIcon.style.background = '#ff0000'; mcIcon.style.color = 'white'; }
-        } else { document.getElementById('mcWrap').style.display = 'none'; }
-
-        // RIKTIG GENRE-LOGIK
-        let rawGenres = m.genres || m.originalCategory || 'Film';
-        let filteredGenres = rawGenres.split(',')
-            .map(g => g.trim())
-            .filter(g => {
-                const low = g.toLowerCase();
-                return low !== "movie" && low !== "film" && low !== "spelfilm" && low !== "spelfilmer";
-            })
-            .join(', ');
-
-        document.getElementById('modalGenre').innerText = filteredGenres || 'Långfilm';
-
-        const heroImg = m.backdrop || m.image || '';
-        if (heroImg) {
-            document.getElementById('modalPoster').src = heroImg;
-            document.getElementById('modalPoster').style.display = 'block';
-            document.getElementById('modalPosterPlaceholder').style.display = 'none';
-        } else {
-            document.getElementById('modalPoster').style.display = 'none';
-            document.getElementById('modalPosterPlaceholder').style.display = 'flex';
-        }
-
-        document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
-
-        let castHtml = '';
-        if (m.director) castHtml += `<strong>Regi:</strong> ${m.director}<br>`;
-        if (m.actors) castHtml += `<strong>Skådespelare:</strong> ${m.actors}`;
-        document.getElementById('modalCast').innerHTML = castHtml;
-        document.getElementById('modalCast').style.display = castHtml ? 'block' : 'none';
-
-        const durationStr = getDurationText(m);
-        const dateStrModal = new Date(m.startTime).toLocaleString('sv-SE', {weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
-        document.getElementById('modalMeta').innerHTML = `${m.channel} • Sändes ${dateStrModal} • ${durationStr}`;
-
-        document.getElementById('modalImdb').href = m.imdbUrl || '#';
-        document.getElementById('modalImdb').style.display = m.imdbUrl ? 'inline-block' : 'none';
-
-        document.getElementById('movieModal').style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        history.pushState({ modalOpen: true }, "");
-    }
-
-    function closeModal(event, fromPopState = false) {
-        if (event) event.stopPropagation();
-        const modal = document.getElementById('movieModal');
-        if (modal.style.display === 'flex') {
-            modal.style.display = 'none'; document.body.style.overflow = 'auto';
-            if (!fromPopState) history.back();
-        }
-    }
-
-    window.addEventListener('popstate', () => { closeModal(null, true); });
 
     init();
 </script>

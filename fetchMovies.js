@@ -218,21 +218,24 @@ async function updateSVTPlay() {
         return;
     }
 
-    console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB (2-stegs-sökning) ---`);
+    console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB (3-stegs-sökning) ---`);
     let svtMovies = [];
-    let seenIds = new Set(); // Förhindrar att en dokumentär laddas ner två gånger
+    let seenIds = new Set(); // Förhindrar att en musikdokumentär laddas ner två gånger
 
-    // Här definierar vi våra två separata anrop till TMDB
+    // Nu har vi tre separata anrop till TMDB
     const queries = [
         {
             name: "Spelfilmer",
-            // 50 min +, MINST 50 röster, exkludera dokumentärer (99) och musik (10402)
             url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=50&without_genres=99,10402&page=`
         },
         {
             name: "Dokumentärer",
-            // 50 min +, MÅSTE vara dokumentär (99), INGET röstkrav!
             url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=99&page=`
+        },
+        {
+            name: "Musik & Konsert",
+            // Genre 10402 är Musik. Inget röstkrav här heller!
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=10402&page=`
         }
     ];
 
@@ -248,12 +251,11 @@ async function updateSVTPlay() {
                 if (!res.ok || !data.results || data.results.length === 0) break;
 
                 if (page === 1) {
-                    totalPages = Math.min(data.total_pages, 100); // Säkert tak per kategori
+                    totalPages = Math.min(data.total_pages, 100);
                     console.log(`Hittade ${data.total_pages} sidor för ${query.name}. Hämtar...`);
                 }
 
                 for (const movie of data.results) {
-                    // Kolla om vi redan lagt in filmen
                     if (seenIds.has(movie.id)) continue;
                     seenIds.add(movie.id);
 

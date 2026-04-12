@@ -24,6 +24,7 @@
     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Alla</button>
     <button class="filter-btn" data-filter="film" onclick="setFilter('film')">Spelfilm</button>
     <button class="filter-btn" data-filter="documentary" onclick="setFilter('documentary')">Dokumentär</button>
+    <button class="filter-btn" data-filter="music" onclick="setFilter('music')">Musik/Konsert</button>
 </div>
 
 <div class="year-slider-container">
@@ -164,12 +165,16 @@
                 return false;
             }
 
-            // 2. Filtrera på KATEGORI (Knapparna)
+            // 2. Filtrera på KATEGORI
             const genres = (m.genres || "").toLowerCase();
             const isDoc = genres.includes("documentary") || genres.includes("dokumentär");
+            const isMusic = genres.includes("music") || genres.includes("musik");
 
             if (currentFilter === 'documentary') return isDoc;
-            if (currentFilter === 'film') return !isDoc;
+            if (currentFilter === 'music') return isMusic;
+
+            // "Spelfilm" är det som blir kvar när det varken är dokumentär eller musik
+            if (currentFilter === 'film') return !isDoc && !isMusic;
 
             return true; // 'all'
         });

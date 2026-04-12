@@ -232,12 +232,12 @@ async function updateSVTPlay() {
         {
             name: "Dokumentärer",
             // Dokumentär: Minst 50 minuter, minst 5 röster (rensar bort noll-betygs-skräpet!)
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=25&vote_count.gte=2&with_genres=99&page=`
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=25&with_genres=99&page=`
         },
         {
             name: "Musik & Konsert",
             // Musik: Minst 50 minuter, minst 2 röster.
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=2&with_genres=10402&page=`
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&with_genres=10402&page=`
         }
     ];
 

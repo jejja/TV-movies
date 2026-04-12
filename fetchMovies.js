@@ -25,19 +25,24 @@ async function getMovieDetails(tmdbId) {
         const actors = tmdbDetailsData.credits?.cast ? tmdbDetailsData.credits.cast.slice(0, 3).map(a => a.name).join(', ') : null;
         const director = tmdbDetailsData.credits?.crew ? tmdbDetailsData.credits.crew.find(c => c.job === 'Director')?.name : null;
 
-        // HÄMTAR RIKTIGA GENRER
+        const language = tmdbDetailsData.original_language || null;
         const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
+        // Frågar OMDb för att hämta IMDb-betyg, Rotten Tomatoes och Metacritic
         if (imdbId && OMDB_KEY) {
-            const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
-            const omdbData = await omdbRes.json();
+            try {
+                const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
+                const omdbData = await omdbRes.json();
 
-            if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
-            if (omdbData.Ratings) {
-                const rt = omdbData.Ratings.find(r => r.Source === "Rotten Tomatoes");
-                const mc = omdbData.Ratings.find(r => r.Source === "Metacritic");
-                if (rt) rottenRating = rt.Value;
-                if (mc) metaRating = mc.Value;
+                if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
+                if (omdbData.Ratings) {
+                    const rt = omdbData.Ratings.find(r => r.Source === "Rotten Tomatoes");
+                    const mc = omdbData.Ratings.find(r => r.Source === "Metacritic");
+                    if (rt) rottenRating = rt.Value;
+                    if (mc) metaRating = mc.Value;
+                }
+            } catch (err) {
+                // Tyst felhantering om OMDb bråkar
             }
         }
 
@@ -53,7 +58,8 @@ async function getMovieDetails(tmdbId) {
             year: year,
             actors: actors,
             director: director,
-            genres: genres // Skickar med genrerna
+            genres: genres,
+            language: language
         };
     } catch (e) {
         return null;
@@ -164,7 +170,7 @@ async function updateTVGuide() {
         const stopTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
 
         const durationMin = (stopTimeMs - startTimeMs) / 1000 / 60;
-        if (durationMin < 70) continue;
+        if (durationMin < 50) continue;
 
         const descMatch = prog.match(/<desc[^>]*>(.*?)<\/desc>/);
         const dateMatch = prog.match(/<date>(\d{4})<\/date>/);
@@ -183,6 +189,7 @@ async function updateTVGuide() {
                 imdbRate: movieData ? movieData.rating : null,
                 rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
                 genres: movieData ? movieData.genres : null,
+                language: movieData ? movieData.language : null,
                 desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
                 imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
                 runtime: movieData ? movieData.runtime : null, date: todayStr
@@ -216,11 +223,10 @@ async function updateSVTPlay() {
     console.log(`\n▶️ --- Hämtar SVT Play-filmer via TMDB ---`);
     let svtMovies = [];
 
-    let totalPages = 1; // Börjar med 1, uppdateras efter första anropet
+    let totalPages = 1;
 
     for (let page = 1; page <= totalPages; page++) {
-        // ID 493 = SVT Play
-        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&page=${page}`;
+        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=1000&page=${page}`;
 
         try {
             const res = await fetch(url);
@@ -235,10 +241,10 @@ async function updateSVTPlay() {
                 break;
             }
 
-            // På första rundan, hämta total_pages. (TMDB tillåter max 500 sidor)
             if (page === 1) {
+                // TMDB tillåter max page 500. Utöver det kraschar API:et.
                 totalPages = Math.min(data.total_pages, 500);
-                console.log(`Hittade totalt ${data.total_pages} sidor hos TMDB. Hämtar rubbet...`);
+                console.log(`Hittade totalt ${data.total_pages} sidor hos TMDB. Hämtar alla tillåtna...`);
             }
 
             for (const movie of data.results) {
@@ -246,6 +252,12 @@ async function updateSVTPlay() {
                 const details = await getMovieDetails(movie.id);
 
                 if (details) {
+                    // NYTT: Kasta filmer som helt saknar genre hos TMDB
+                    if (!details.genres || details.genres.trim() === "") {
+                        console.log(`⏩ Hoppar över: ${movie.title} (TMDB saknar genredata)`);
+                        continue;
+                    }
+
                     svtMovies.push({
                         title: movie.title,
                         originalCategory: "SVT Play",
@@ -259,12 +271,12 @@ async function updateSVTPlay() {
                         rottenRate: details.rottenRate,
                         metaRate: details.metaRate,
                         genres: details.genres,
+                        language: details.language,
                         desc: details.desc || movie.overview,
                         imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
                         runtime: details.runtime
                     });
                 }
-                // Paus på 150ms för att inte överskrida rate-limits
                 await new Promise(r => setTimeout(r, 150));
             }
         } catch (e) {
@@ -273,7 +285,7 @@ async function updateSVTPlay() {
     }
 
     fs.writeFileSync('svtplay.json', JSON.stringify(svtMovies, null, 2));
-    console.log(`✅ KLART! Sparade ${svtMovies.length} filmer i svtplay.json.`);
+    console.log(`✅ KLART! Sparade ${svtMovies.length} kurerade filmer i svtplay.json.`);
 }
 
 // ---------------------------------------------------------

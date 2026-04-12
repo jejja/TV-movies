@@ -1,5 +1,3 @@
-// --- GEMENSAMMA HJÄLPFUNKTIONER ---
-
 function getDurationText(m) {
     if (m.runtime && m.runtime > 0) {
         const hours = Math.floor(m.runtime / 60);
@@ -30,13 +28,10 @@ function toggleMenu() {
     }
 }
 
-// --- MODAL LOGIK ---
-
 function openSharedModal(m, source) {
     document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
     document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '★ -';
 
-    // Hantera Rotten Tomatoes
     if (m.rottenRate) {
         document.getElementById('rtWrap').style.display = 'flex';
         document.getElementById('modalRotten').innerText = m.rottenRate;
@@ -44,7 +39,6 @@ function openSharedModal(m, source) {
         document.getElementById('rtWrap').style.display = 'none';
     }
 
-    // Hantera Metacritic
     if (m.metaRate) {
         document.getElementById('mcWrap').style.display = 'flex';
         document.getElementById('modalMetacritic').innerText = m.metaRate;
@@ -57,7 +51,6 @@ function openSharedModal(m, source) {
         document.getElementById('mcWrap').style.display = 'none';
     }
 
-    // Genrer
     let rawGenres = m.genres || m.originalCategory || 'Film';
     let filteredGenres = rawGenres.split(',')
         .map(g => g.trim())
@@ -68,10 +61,8 @@ function openSharedModal(m, source) {
         .join(', ');
     document.getElementById('modalGenre').innerText = filteredGenres || 'Långfilm';
 
-    // Färg på genre baserat på sajt (Röd för TV, Grön för SVT Play)
     document.getElementById('modalGenre').style.color = source === 'svt' ? 'var(--svt)' : 'var(--accent)';
 
-    // Bild
     const heroImg = m.backdrop || m.image || '';
     if (heroImg) {
         document.getElementById('modalPoster').src = heroImg;
@@ -84,14 +75,12 @@ function openSharedModal(m, source) {
 
     document.getElementById('modalDesc').innerText = m.desc || 'Ingen beskrivning tillgänglig.';
 
-    // Roller
     let castHtml = '';
     if (m.director) castHtml += `<strong>Regi:</strong> ${m.director}<br>`;
     if (m.actors) castHtml += `<strong>Skådespelare:</strong> ${m.actors}`;
     document.getElementById('modalCast').innerHTML = castHtml;
     document.getElementById('modalCast').style.display = castHtml ? 'block' : 'none';
 
-    // Meta-text (Kanal/SVT Play, Datum, Längd)
     const durationStr = getDurationText(m);
     if (source === 'svt') {
         document.getElementById('modalMeta').innerHTML = `Finns på SVT Play • ${durationStr}`;

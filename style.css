@@ -21,13 +21,12 @@ body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--
 .menu-links a { color: white; text-decoration: none; font-size: 16px; font-weight: 600; padding: 16px 12px; background: #262626; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
 .menu-links a.active { background: var(--accent); }
 
-/* FILTER KNAPPAR */
+/* FILTER KNAPPAR OCH SLIDER */
 .filter-container { display: flex; gap: 10px; padding: 16px 16px 10px 16px; overflow-x: auto; scrollbar-width: none; }
 .filter-container::-webkit-scrollbar { display: none; }
 .filter-btn { background: #262626; color: var(--gray); border: 1px solid #333; padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
 .filter-btn.active { background: var(--svt); color: black; border-color: var(--svt); }
 
-/* ÅRTALSSLIDER */
 .year-slider-container { display: flex; align-items: center; gap: 12px; padding: 0 16px 10px 16px; font-size: 13px; font-weight: 600; color: var(--gray); }
 .year-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; background: #333; border-radius: 3px; outline: none; }
 .year-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--svt); cursor: pointer; box-shadow: 0 0 8px rgba(0, 200, 166, 0.4); }
@@ -54,7 +53,7 @@ body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--
 .modal-hero-placeholder { width: 100%; height: 220px; background: #262626; display: none; align-items: center; justify-content: center; font-size: 70px; border-top-left-radius: 20px; border-top-right-radius: 20px; filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4)); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 50%, rgba(0,0,0,0) 100%); }
 .modal-body { padding: 0 24px 24px 24px; position: relative; margin-top: -30px; }
 .close-btn { position: absolute; top: 15px; right: 15px; font-size: 28px; color: white; cursor: pointer; z-index: 10; background: rgba(0,0,0,0.6); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.modal-genre { color: var(--accent); font-weight: 600; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
+.modal-genre { font-weight: 600; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
 .modal-title-wrap { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .modal-rating { color: var(--imdb); font-weight: 800; font-size: 20px; }
 .modal-desc { color: #d1d5db; line-height: 1.6; font-size: 15px; margin: 18px 0; }

@@ -10,7 +10,6 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍿</text></svg>">
     <title>Filmguiden 🍿</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -87,15 +86,18 @@
         const dateObj = new Date(m.startTime);
         const timeStr = dateObj.toLocaleTimeString('sv-SE', {hour: '2-digit', minute:'2-digit'});
         const dateStr = dateObj.toLocaleDateString('sv-SE', {day: 'numeric', month: 'short'});
-        const durationStr = getDurationText(m); // Kallar på app.js
+        const durationStr = getDurationText(m);
         const metaHTML = currentTab === 'today' ? `Idag ${timeStr} • ${durationStr}` : `${dateStr} • ${m.channel} • ${durationStr}`;
         const posterHTML = m.image ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">` : `<span class="poster-placeholder">⭐</span>`;
         const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
+        // Fixad layout för badge inuti poster-container
         return `
             <div class="movie-card" onclick="openModalById('${m.startTime}-${safeTitle}')">
-                ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
-                <div class="poster-container">${posterHTML}</div>
+                <div class="poster-container">
+                    ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                    ${posterHTML}
+                </div>
                 <div class="info">
                     <div class="title">${m.title}</div>
                     <div class="meta">${metaHTML}</div>
@@ -154,7 +156,7 @@
         const [startTime, ...titleParts] = idMatch.split('-');
         const title = titleParts.join('-');
         const m = allMoviesData.find(x => x.startTime.toString() === startTime && x.title === title);
-        if(m) openSharedModal(m, 'tv'); // Kallar på gemensam modal-funktion i app.js
+        if(m) openSharedModal(m, 'tv');
     }
 
     init();

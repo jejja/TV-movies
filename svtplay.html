@@ -1,14 +1,153 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Filmguiden">
+    <meta name="theme-color" content="#0f0f0f">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍿</text></svg>">
+    <title>SVT Play - Filmguiden</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header-wrapper">
+    <h1 class="page-title">SVT Play <span>Filmer</span></h1>
+    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+</div>
+
 <div class="filter-container">
     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Alla</button>
-    <button class="filter-btn" data-filter="new" onclick="setFilter('new')">Nyinkommet ✨</button> <button class="filter-btn" data-filter="film" onclick="setFilter('film')">Spelfilm</button>
+    <button class="filter-btn" data-filter="new" onclick="setFilter('new')">Nyinkommet ✨</button>
+    <button class="filter-btn" data-filter="film" onclick="setFilter('film')">Spelfilm</button>
     <button class="filter-btn" data-filter="documentary" onclick="setFilter('documentary')">Dokumentär</button>
     <button class="filter-btn" data-filter="music" onclick="setFilter('music')">Musik/Konsert</button>
 </div>
 
+<div class="year-slider-container">
+    <span>Från år:</span>
+    <input type="range" id="yearSlider" class="year-slider" min="1900" max="2026" value="1900" oninput="updateYearDisplay(this.value)" onchange="render()">
+    <span id="yearDisplay" class="year-display">1900</span>
+</div>
+
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+<div id="sideMenu" class="side-menu">
+    <button class="menu-close" onclick="toggleMenu()">✕</button>
+    <div class="menu-links">
+        <a href="index.html">TV-tablå <span>📺</span></a>
+        <a href="svtplay.html" class="active" style="background: var(--svt);">SVT Play <span>▶️</span></a>
+    </div>
+</div>
+
+<div class="container" id="movie-grid"></div>
+
+<div class="footer">
+    Designad för filmälskare. <br>
+    Data: <a href="https://www.themoviedb.org/" target="_blank">TMDB</a> & <a href="https://www.omdbapi.com/" target="_blank">OMDb</a>
+</div>
+
+<div id="movieModal" class="modal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="close-btn" onclick="closeModal(event)">×</span>
+        <img id="modalPoster" class="modal-hero-img">
+        <div id="modalPosterPlaceholder" class="modal-hero-placeholder">⭐</div>
+        <div class="modal-body">
+            <div id="modalGenre" class="modal-genre"></div>
+            <div class="modal-title-wrap">
+                <h2 id="modalTitle" style="margin: 0; letter-spacing: -0.03em;"></h2>
+                <span id="modalRating" class="modal-rating"></span>
+            </div>
+            <div class="extra-ratings" id="modalExtraRatings">
+                <div class="rating-item" id="rtWrap">
+                    <span class="rt-icon">🍅</span> <span id="modalRotten"></span>
+                </div>
+                <div class="rating-item" id="mcWrap">
+                    <span id="modalMetaIcon" class="mc-icon">M</span> <span id="modalMetacritic"></span>
+                </div>
+            </div>
+            <div id="modalMeta" class="meta" style="margin-top: 10px;"></div>
+            <div id="modalCast" style="font-size: 13px; color: #9ca3af; margin-top: 12px; line-height: 1.4;"></div>
+            <p id="modalDesc" class="modal-desc"></p>
+            <a id="modalImdb" target="_blank" style="background: var(--imdb); color: black; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 14px; display: inline-block;">Öppna IMDb</a>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+
 <script>
+    let allMoviesData = [];
+    let currentDisplayMovies = [];
+    let currentFilter = 'all';
+
+    async function init() {
+        try {
+            const res = await fetch('svtplay.json?cb=' + Date.now());
+            if (res.ok) {
+                allMoviesData = await res.json();
+                setupYearSlider();
+                render();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function setupYearSlider() {
+        if (allMoviesData.length === 0) return;
+        const years = allMoviesData.map(m => parseInt(m.year)).filter(y => !isNaN(y));
+        if (years.length === 0) return;
+
+        const minYear = Math.min(...years);
+        const maxYear = new Date().getFullYear();
+
+        const slider = document.getElementById('yearSlider');
+        slider.min = minYear;
+        slider.max = maxYear;
+        slider.value = minYear;
+
+        document.getElementById('yearDisplay').innerText = minYear;
+    }
+
+    function updateYearDisplay(val) {
+        document.getElementById('yearDisplay').innerText = val;
+    }
+
+    function createCardHTML(m, index) {
+        const durationStr = getDurationText(m);
+        const metaHTML = m.year ? `${m.year} • ${durationStr}` : durationStr;
+        const posterHTML = m.image ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">` : `<span class="poster-placeholder">⭐</span>`;
+
+        // Fixad layout för badge
+        return `
+            <div class="movie-card" onclick="openModalByIndex(${index})">
+                <div class="poster-container">
+                    ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                    ${posterHTML}
+                </div>
+                <div class="info">
+                    <div class="title">${m.title}</div>
+                    <div class="meta">${metaHTML}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function setFilter(filterType) {
+        currentFilter = filterType;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            if(btn.dataset.filter === filterType) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+        render();
+    }
+
     function render() {
         const root = document.getElementById('movie-grid');
         root.innerHTML = "";
+
         const selectedMinYear = parseInt(document.getElementById('yearSlider').value) || 1900;
 
         let filteredMovies = allMoviesData.filter(m => {
@@ -19,19 +158,22 @@
             const isDoc = genres.includes("documentary") || genres.includes("dokumentär");
             const isMusic = genres.includes("music") || genres.includes("musik");
 
+            // Filter
             if (currentFilter === 'documentary') return isDoc;
             if (currentFilter === 'music') return isMusic;
             if (currentFilter === 'film') return !isDoc && !isMusic;
-            return true;
+
+            return true; // 'all' och 'new' returnerar allt här
         });
 
-        // --- UPPDATERAD SORTERING ---
         currentDisplayMovies = [...filteredMovies].sort((a, b) => {
             if (currentFilter === 'new') {
-                // Sortera på addedDate (nyast först)
-                return new Date(b.addedDate || '1970-01-01') - new Date(a.addedDate || '1970-01-01');
+                // Sortera på addedDate. Saknas datum sätts det till extremt gammalt så det hamnar sist.
+                const dateA = new Date(a.addedDate || '1970-01-01');
+                const dateB = new Date(b.addedDate || '1970-01-01');
+                return dateB - dateA;
             } else {
-                // Standard: Sortera på IMDb-betyg
+                // Sortera på betyg
                 const rateA = parseFloat(a.imdbRate) || 0;
                 const rateB = parseFloat(b.imdbRate) || 0;
                 return rateB - rateA;
@@ -42,6 +184,16 @@
             root.innerHTML = `<div class="empty-channel">Inga filmer matchar din sökning.</div>`;
             return;
         }
+
         root.innerHTML = currentDisplayMovies.map((m, index) => createCardHTML(m, index)).join('');
     }
+
+    function openModalByIndex(index) {
+        const m = currentDisplayMovies[index];
+        if(m) openSharedModal(m, 'svt');
+    }
+
+    init();
 </script>
+</body>
+</html>

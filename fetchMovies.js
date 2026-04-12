@@ -227,12 +227,12 @@ async function updateSVTPlay() {
         {
             name: "Spelfilmer",
             // Spelfilm: Minst 50 minuter, minst 60 röster. Inga dokumentärer/musik.
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=60&without_genres=99,10402&page=`
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=60&vote_count.gte=20&without_genres=99,10402&page=`
         },
         {
             name: "Dokumentärer",
             // Dokumentär: Minst 50 minuter, minst 5 röster (rensar bort noll-betygs-skräpet!)
-            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=50&vote_count.gte=5&with_genres=99&page=`
+            url: `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&language=sv-SE&watch_region=SE&with_watch_providers=493&sort_by=popularity.desc&with_runtime.gte=25&vote_count.gte=2&with_genres=99&page=`
         },
         {
             name: "Musik & Konsert",

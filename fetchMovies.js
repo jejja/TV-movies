@@ -17,7 +17,7 @@ function getSwedishDate() {
 async function getMovieDetails(tmdbId) {
     if (!TMDB_KEY) return null;
     try {
-        const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=credits`);
+        const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&language=sv-SE&append_to_response=credits`);
         const tmdbDetailsData = await tmdbDetailsRes.json();
 
         let imdbRating = null;

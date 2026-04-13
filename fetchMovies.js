@@ -80,7 +80,7 @@ async function getMovieInfoByTitle(title) {
 }
 
 // ---------------------------------------------------------
-// DEL 1: TV-TABLÅN (movies.json)
+// DEL 1: TV-TABLÅN (movies.json) med självläkande betyg
 // ---------------------------------------------------------
 async function updateTVGuide() {
     const now = new Date();
@@ -174,25 +174,42 @@ async function updateTVGuide() {
         const dateMatch = prog.match(/<date>(\d{4})<\/date>/);
         const xmlYear = dateMatch ? dateMatch[1] : null;
 
+        // Se till att vi inte lägger in dubbletter i dagens lista
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
-            console.log(`🎬 MATCH (TV): ${title} på ${cleanChannelName}`);
-            const movieData = await getMovieInfoByTitle(title);
-
-            moviesToday.push({
-                title: title, channel: cleanChannelName, originalChannel: rawId, originalCategory: originalCategory,
-                startTime: startTimeMs, endTime: stopTimeMs,
-                image: movieData ? movieData.poster : null, backdrop: movieData ? movieData.backdrop : null,
-                year: (movieData && movieData.year) ? movieData.year : xmlYear,
-                actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null,
-                imdbRate: movieData ? movieData.rating : null,
-                rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
-                genres: movieData ? movieData.genres : null,
-                language: movieData ? movieData.language : null,
-                desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
-                imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
-                runtime: movieData ? movieData.runtime : null, date: todayStr
-            });
-            await new Promise(r => setTimeout(r, 200));
+            
+            // 1. Kolla om vi redan har hämtat denna film perfekt tidigare dagar
+            const existingMovie = allMovies.find(m => m.title === title && m.startTime === startTimeMs);
+            
+            if (existingMovie && existingMovie.imdbRate !== null) {
+                // Vi har redan filmen, och den har betyg! Rör inte API:et!
+                console.log(`♻️ Behåller data (TV): ${title}`);
+                moviesToday.push(existingMovie);
+            } else {
+                // Vi har inte filmen, ELLER så har den null i betyg och behöver lagas!
+                if (existingMovie && existingMovie.imdbRate === null) {
+                    console.log(`🔧 Lagar betyg (TV): ${title}`);
+                } else {
+                    console.log(`🎬 MATCH (TV): ${title} på ${cleanChannelName}`);
+                }
+                
+                const movieData = await getMovieInfoByTitle(title);
+                
+                moviesToday.push({
+                    title: title, channel: cleanChannelName, originalChannel: rawId, originalCategory: originalCategory,
+                    startTime: startTimeMs, endTime: stopTimeMs,
+                    image: movieData ? movieData.poster : null, backdrop: movieData ? movieData.backdrop : null,
+                    year: (movieData && movieData.year) ? movieData.year : xmlYear,
+                    actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null,
+                    imdbRate: movieData ? movieData.rating : null,
+                    rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
+                    genres: movieData ? movieData.genres : null,
+                    language: movieData ? movieData.language : null,
+                    desc: (movieData && movieData.desc) ? movieData.desc : (descMatch ? descMatch[1] : "Ingen beskrivning."),
+                    imdbUrl: movieData && movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
+                    runtime: movieData ? movieData.runtime : null, date: todayStr
+                });
+                await new Promise(r => setTimeout(r, 200)); // Snäll mot API
+            }
         }
     }
 
@@ -210,7 +227,7 @@ async function updateTVGuide() {
 }
 
 // ---------------------------------------------------------
-// DEL 2: SVT PLAY (svtplay.json) med UPSERT-logik
+// DEL 2: SVT PLAY (svtplay.json) med UPSERT-logik och Läkning
 // ---------------------------------------------------------
 async function updateSVTPlay() {
     if (!TMDB_KEY) {
@@ -220,7 +237,7 @@ async function updateSVTPlay() {
 
     const todayISO = new Date().toISOString().split('T')[0];
     console.log(`\n▶️ --- Synkar SVT Play (Upsert) ---`);
-
+    
     let existingMovies = [];
     try {
         if (fs.existsSync('svtplay.json')) {
@@ -259,31 +276,32 @@ async function updateSVTPlay() {
 
                 if (page === 1) {
                     totalPages = Math.min(data.total_pages, 100);
-                    console.log(`Hittade ${data.total_pages} sidor för ${query.name}. Hämtar...`);
                 }
 
                 for (const movie of data.results) {
                     if (currentSweepIds.has(movie.id)) continue;
                     currentSweepIds.add(movie.id);
 
-                    // 1. Kolla om vi redan har filmen
+                    // Kolla om vi redan har filmen
                     let existing = existingMovies.find(m => m.tmdbId === movie.id || (m.title === movie.title && m.year === movie.release_date?.substring(0,4)));
 
-                    if (existing) {
-                        // Vi har den! Behåll gammalt addedDate och betyg.
+                    // Vi kollar om den har ett betyg (som inte är null)
+                    if (existing && existing.imdbRate !== null) {
                         console.log(`♻️ Behåller: ${movie.title}`);
-                        existing.stillPresent = true;
+                        existing.stillPresent = true; 
                         newOrUpdatedList.push(existing);
                     } else {
-                        // 2. Ny film! Hämta ALL data
-                        console.log(`✨ NY FILM: ${movie.title}`);
+                        // NY film ELLER gammal film som saknar betyg (imdbRate === null)
+                        if (existing) {
+                            console.log(`🔧 Lagar saknat betyg: ${movie.title}`);
+                        } else {
+                            console.log(`✨ NY FILM: ${movie.title}`);
+                        }
+
                         const details = await getMovieDetails(movie.id);
 
                         if (details) {
-                            if (!details.genres || details.genres.trim() === "") {
-                                console.log(`⏩ Hoppar över: ${movie.title} (Saknar genre)`);
-                                continue;
-                            }
+                            if (!details.genres || details.genres.trim() === "") continue;
 
                             newOrUpdatedList.push({
                                 tmdbId: movie.id,
@@ -303,7 +321,8 @@ async function updateSVTPlay() {
                                 desc: details.desc || movie.overview,
                                 imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
                                 runtime: details.runtime,
-                                addedDate: todayISO, // Stämpla in när den hittades!
+                                // HÄR ÄR SÄKERHETEN FÖR DATUMET:
+                                addedDate: (existing && existing.addedDate) ? existing.addedDate : todayISO, 
                                 stillPresent: true
                             });
                         }
@@ -316,15 +335,13 @@ async function updateSVTPlay() {
         }
     }
 
-    // Säkerhetsbrytare för TMDB hickor
     if (newOrUpdatedList.length < 30) {
-        console.log("⚠️ Varning: Hittade misstänkt få filmer. Avbryter städning för att inte råka tömma listan.");
+        console.log("⚠️ Avbryter städning - för få filmer hittades (säkerhetsbrytare).");
         return;
     }
 
-    // Filtrera bort gamla filmer som SVT Play har tagit bort
     const finalData = newOrUpdatedList.filter(m => m.stillPresent);
-    finalData.forEach(m => delete m.stillPresent); // Städa bort vår temp-flagga
+    finalData.forEach(m => delete m.stillPresent);
 
     fs.writeFileSync('svtplay.json', JSON.stringify(finalData, null, 2));
     console.log(`✅ Synk klar! Totalt ${finalData.length} kurerade filmer i svtplay.json.`);

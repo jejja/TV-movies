@@ -21,17 +21,22 @@ body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--
 .menu-links a { color: white; text-decoration: none; font-size: 16px; font-weight: 600; padding: 16px 12px; background: #262626; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
 .menu-links a.active { background: var(--accent); }
 
-/* FILTER KNAPPAR OCH SLIDER */
+/* FILTER KNAPPAR OCH VERKTYG */
 .filter-container { display: flex; gap: 10px; padding: 16px 16px 10px 16px; overflow-x: auto; scrollbar-width: none; }
 .filter-container::-webkit-scrollbar { display: none; }
 .filter-btn { background: #262626; color: var(--gray); border: 1px solid #333; padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
 .filter-btn.active { background: var(--svt); color: black; border-color: var(--svt); }
 
-.year-slider-container { display: flex; align-items: center; gap: 12px; padding: 0 16px 10px 16px; font-size: 13px; font-weight: 600; color: var(--gray); }
+.tools-container { display: flex; justify-content: space-between; align-items: center; padding: 0 16px 10px 16px; gap: 15px; flex-wrap: wrap; }
+.year-slider-container { flex: 1; display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600; color: var(--gray); min-width: 200px; }
 .year-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; background: #333; border-radius: 3px; outline: none; }
 .year-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--svt); cursor: pointer; box-shadow: 0 0 8px rgba(0, 200, 166, 0.4); }
 .year-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--svt); cursor: pointer; border: none; box-shadow: 0 0 8px rgba(0, 200, 166, 0.4); }
 .year-display { color: white; min-width: 40px; text-align: right; }
+
+.sort-toggle { display: flex; align-items: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--gray); background: #262626; padding: 6px 14px; border-radius: 20px; border: 1px solid #333; transition: all 0.2s ease; user-select: none; }
+.sort-toggle input { display: none; }
+.sort-toggle.active { background: var(--svt); color: black; border-color: var(--svt); box-shadow: 0 0 10px rgba(0, 200, 166, 0.2); }
 
 /* KORT & LISTOR */
 .section-title { font-weight: 800; font-size: 18px; margin: 30px 16px 12px 16px; color: white; letter-spacing: -0.02em; }
@@ -41,7 +46,11 @@ body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--
 .poster-container { width: 100%; aspect-ratio: 2/3; position: relative; background: #262626; display: flex; align-items: center; justify-content: center; }
 .poster { width: 100%; height: 100%; object-fit: cover; }
 .poster-placeholder { font-size: 40px; filter: drop-shadow(0 0 10px rgba(245, 197, 24, 0.4)); }
+
+/* BADGES */
 .imdb-badge { position: absolute; top: 8px; right: 8px; background: var(--imdb); color: black; padding: 3px 6px; border-radius: 6px; font-size: 11px; font-weight: 800; z-index: 2; }
+.new-badge { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: var(--svt); color: black; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; z-index: 2; white-space: nowrap; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6); }
+
 .info { padding: 12px; }
 .title { font-size: 14px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .meta { font-size: 12px; color: var(--gray); }

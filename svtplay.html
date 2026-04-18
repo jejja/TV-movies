@@ -22,16 +22,22 @@
 
 <div class="filter-container">
     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Alla</button>
-    <button class="filter-btn" data-filter="new" onclick="setFilter('new')">Nyinkommet ✨</button>
     <button class="filter-btn" data-filter="film" onclick="setFilter('film')">Spelfilm</button>
     <button class="filter-btn" data-filter="documentary" onclick="setFilter('documentary')">Dokumentär</button>
     <button class="filter-btn" data-filter="music" onclick="setFilter('music')">Musik/Konsert</button>
 </div>
 
-<div class="year-slider-container">
-    <span>Från år:</span>
-    <input type="range" id="yearSlider" class="year-slider" min="1900" max="2026" value="1900" oninput="updateYearDisplay(this.value)" onchange="render()">
-    <span id="yearDisplay" class="year-display">1900</span>
+<div class="tools-container">
+    <div class="year-slider-container">
+        <span>Från år:</span>
+        <input type="range" id="yearSlider" class="year-slider" min="1900" max="2026" value="1900" oninput="updateYearDisplay(this.value)" onchange="render()">
+        <span id="yearDisplay" class="year-display">1900</span>
+    </div>
+
+    <label class="sort-toggle" id="sortToggleLabel">
+        <input type="checkbox" id="sortNewToggle" onchange="toggleSort(this.checked)">
+        <span>Nyinkommet ✨</span>
+    </label>
 </div>
 
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
@@ -62,12 +68,8 @@
                 <span id="modalRating" class="modal-rating"></span>
             </div>
             <div class="extra-ratings" id="modalExtraRatings">
-                <div class="rating-item" id="rtWrap">
-                    <span class="rt-icon">🍅</span> <span id="modalRotten"></span>
-                </div>
-                <div class="rating-item" id="mcWrap">
-                    <span id="modalMetaIcon" class="mc-icon">M</span> <span id="modalMetacritic"></span>
-                </div>
+                <div class="rating-item" id="rtWrap"><span class="rt-icon">🍅</span> <span id="modalRotten"></span></div>
+                <div class="rating-item" id="mcWrap"><span id="modalMetaIcon" class="mc-icon">M</span> <span id="modalMetacritic"></span></div>
             </div>
             <div id="modalMeta" class="meta" style="margin-top: 10px;"></div>
             <div id="modalCast" style="font-size: 13px; color: #9ca3af; margin-top: 12px; line-height: 1.4;"></div>
@@ -83,6 +85,7 @@
     let allMoviesData = [];
     let currentDisplayMovies = [];
     let currentFilter = 'all';
+    let sortByNewest = false;
 
     async function init() {
         try {
@@ -107,7 +110,6 @@
         slider.min = minYear;
         slider.max = maxYear;
         slider.value = minYear;
-
         document.getElementById('yearDisplay').innerText = minYear;
     }
 
@@ -115,16 +117,48 @@
         document.getElementById('yearDisplay').innerText = val;
     }
 
+    function toggleSort(isChecked) {
+        sortByNewest = isChecked;
+        const label = document.getElementById('sortToggleLabel');
+        if(isChecked) {
+            label.classList.add('active');
+        } else {
+            label.classList.remove('active');
+        }
+        render();
+    }
+
+    function getAddedAgoText(dateStr) {
+        if (!dateStr) return "Nyligen tillagd";
+
+        const added = new Date(dateStr);
+        added.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const diffDays = Math.round((today - added) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return "Idag";
+        if (diffDays === 1) return "Igår";
+        return `${diffDays} dagar sedan`;
+    }
+
     function createCardHTML(m, index) {
         const durationStr = getDurationText(m);
         const metaHTML = m.year ? `${m.year} • ${durationStr}` : durationStr;
         const posterHTML = m.image ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">` : `<span class="poster-placeholder">⭐</span>`;
 
-        // Fixad layout för badge
+        let newBadgeHTML = '';
+        if (sortByNewest && m.addedDate) {
+            const agoStr = getAddedAgoText(m.addedDate);
+            newBadgeHTML = `<div class="new-badge">${agoStr}</div>`;
+        }
+
         return `
             <div class="movie-card" onclick="openModalByIndex(${index})">
                 <div class="poster-container">
                     ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                    ${newBadgeHTML}
                     ${posterHTML}
                 </div>
                 <div class="info">
@@ -158,22 +192,19 @@
             const isDoc = genres.includes("documentary") || genres.includes("dokumentär");
             const isMusic = genres.includes("music") || genres.includes("musik");
 
-            // Filter
             if (currentFilter === 'documentary') return isDoc;
             if (currentFilter === 'music') return isMusic;
             if (currentFilter === 'film') return !isDoc && !isMusic;
 
-            return true; // 'all' och 'new' returnerar allt här
+            return true;
         });
 
         currentDisplayMovies = [...filteredMovies].sort((a, b) => {
-            if (currentFilter === 'new') {
-                // Sortera på addedDate. Saknas datum sätts det till extremt gammalt så det hamnar sist.
+            if (sortByNewest) {
                 const dateA = new Date(a.addedDate || '1970-01-01');
                 const dateB = new Date(b.addedDate || '1970-01-01');
                 return dateB - dateA;
             } else {
-                // Sortera på betyg
                 const rateA = parseFloat(a.imdbRate) || 0;
                 const rateB = parseFloat(b.imdbRate) || 0;
                 return rateB - rateA;

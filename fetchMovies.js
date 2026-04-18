@@ -4,6 +4,8 @@ const zlib = require('zlib');
 const TMDB_KEY = process.env.TMDB_API_KEY ? process.env.TMDB_API_KEY.trim() : null;
 const OMDB_KEY = process.env.OMDB_API_KEY ? process.env.OMDB_API_KEY.trim() : null;
 
+let omdbLimitReached = false; // SÄKERHETSBRYTARE FÖR OMDB
+
 // Hjälpfunktion för att få konsekvent datum (YYYY-MM-DD) i svensk tid
 function getSwedishDate() {
     return new Intl.DateTimeFormat('sv-SE', {
@@ -35,17 +37,37 @@ async function getMovieDetails(tmdbId) {
         const language = tmdbDetailsData.original_language || null;
         const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
-        if (imdbId && OMDB_KEY) {
+        // --- SMARTARE OMDB LOGIK ---
+        if (!imdbId) {
+            // Om TMDB inte har något IMDb-ID, kostar det 0 anrop att sätta N/A
+            imdbRating = "N/A";
+        } else if (OMDB_KEY && !omdbLimitReached) {
             try {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
 
-                if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") imdbRating = omdbData.imdbRating;
-                if (omdbData.Ratings) {
-                    const rt = omdbData.Ratings.find(r => r.Source === "Rotten Tomatoes");
-                    const mc = omdbData.Ratings.find(r => r.Source === "Metacritic");
-                    if (rt) rottenRating = rt.Value;
-                    if (mc) metaRating = mc.Value;
+                if (omdbData.Response === "False") {
+                    if (omdbData.Error && omdbData.Error.toLowerCase().includes("limit")) {
+                        console.log(`   🛑 OMDb-gräns nådd! Avbryter fler betygssökningar idag.`);
+                        omdbLimitReached = true;
+                        // imdbRating lämnas som null så den kan lagas imorgon
+                    } else {
+                        // Något annat fel (t.ex. fel ID)
+                        imdbRating = "N/A";
+                    }
+                } else {
+                    if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") {
+                        imdbRating = omdbData.imdbRating;
+                    } else {
+                        imdbRating = "N/A";
+                    }
+
+                    if (omdbData.Ratings) {
+                        const rt = omdbData.Ratings.find(r => r.Source === "Rotten Tomatoes");
+                        const mc = omdbData.Ratings.find(r => r.Source === "Metacritic");
+                        if (rt) rottenRating = rt.Value;
+                        if (mc) metaRating = mc.Value;
+                    }
                 }
             } catch (err) {}
         }
@@ -79,7 +101,7 @@ async function updateTVGuide() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const options = { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' };
     const tomorrowEarlyStr = new Intl.DateTimeFormat('sv-SE', options).format(tomorrow);
-    
+
     let moviesToday = [];
     let allMovies = [];
     try {
@@ -103,10 +125,10 @@ async function updateTVGuide() {
 
     const programmes = xml.split('<programme');
     const channelMap = {
-        "[SVT1HD].SVT1.HD.se": "SVT1", "[SVT2HD].SVT2.HD.se": "SVT2", "[TV3HD].TV3.HD.se": "TV3", 
-        "[TV4HD].TV4.HD.se": "TV4", "[KANL5HD].KANAL.5.HD.se": "KANAL 5", "[TV6HD].TV6.HD.se": "TV6", 
-        "[SJUHD].Sjuan.HD.se": "SJUAN", "[TV8HD].TV8.HD.se": "TV8", "[KANAL9H].Kanal.9.HD.se": "KANAL 9", 
-        "[TV10HD].TV10.HD.se": "TV10", "[KANAL10].Kanal.10.se": "TV10", "[KANL11H].Kanal.11.HD.se": "KANAL 11", 
+        "[SVT1HD].SVT1.HD.se": "SVT1", "[SVT2HD].SVT2.HD.se": "SVT2", "[TV3HD].TV3.HD.se": "TV3",
+        "[TV4HD].TV4.HD.se": "TV4", "[KANL5HD].KANAL.5.HD.se": "KANAL 5", "[TV6HD].TV6.HD.se": "TV6",
+        "[SJUHD].Sjuan.HD.se": "SJUAN", "[TV8HD].TV8.HD.se": "TV8", "[KANAL9H].Kanal.9.HD.se": "KANAL 9",
+        "[TV10HD].TV10.HD.se": "TV10", "[KANAL10].Kanal.10.se": "TV10", "[KANL11H].Kanal.11.HD.se": "KANAL 11",
         "[TV12HD].TV12.HD.se": "TV12"
     };
 
@@ -116,20 +138,20 @@ async function updateTVGuide() {
         if (!channelMatch) continue;
         const rawId = channelMatch[1];
         const cleanChannelName = channelMap[rawId];
-        if (!cleanChannelName) continue; 
+        if (!cleanChannelName) continue;
 
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
-        const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/^Dox:\s*/i, ''); 
+        const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/^Dox:\s*/i, '');
 
         const categoryMatches = [...prog.matchAll(/<category[^>]*>(.*?)<\/category>/gi)].map(m => m[1]);
         const catsLower = categoryMatches.join(', ').toLowerCase();
 
         const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy", "kriminal", "crime", "deckare", "mysterie", "mystery", "romantik", "romance"];
-        if (!movieKeywords.some(key => catsLower.includes(key))) continue; 
+        if (!movieKeywords.some(key => catsLower.includes(key))) continue;
 
         const hardExcludeKeywords = ["series", "serie", "nyheter", "news", "theater"];
-        if (hardExcludeKeywords.some(key => catsLower.includes(key))) continue; 
+        if (hardExcludeKeywords.some(key => catsLower.includes(key))) continue;
 
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
@@ -145,23 +167,29 @@ async function updateTVGuide() {
         const startTimeMs = new Date(`${progStartDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`).getTime();
         let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
         const stopTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
-        
-        if ((stopTimeMs - startTimeMs) / 60000 < 50) continue; 
+
+        if ((stopTimeMs - startTimeMs) / 60000 < 50) continue;
 
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
             const existingMovie = allMovies.find(m => m.title === title && m.startTime === startTimeMs);
-            if (existingMovie && existingMovie.imdbRate !== null) {
+
+            // Kolla om filmen har ett RIKTIGT betyg (inte null och inte N/A)
+            const hasValidRating = existingMovie && existingMovie.imdbRate !== null && existingMovie.imdbRate !== "N/A";
+
+            if (hasValidRating) {
                 console.log(`♻️ Behåller data (TV): ${title}`);
                 moviesToday.push(existingMovie);
             } else {
-                console.log(`🎬 MATCH (TV): ${title}`);
+                if (existingMovie) console.log(`🔧 Lagar betyg (TV): ${title}`);
+                else console.log(`🎬 MATCH (TV): ${title}`);
+
                 const movieData = await getMovieInfoByTitle(title);
                 moviesToday.push({
                     title, channel: cleanChannelName, originalChannel: rawId, originalCategory: categoryMatches.join(', '),
                     startTime: startTimeMs, endTime: stopTimeMs,
-                    image: movieData ? movieData.poster : null, backdrop: movieData ? movieData.backdrop : null, 
-                    year: movieData ? movieData.year : (prog.match(/<date>(\d{4})<\/date>/)?.[1] || null), 
-                    actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null, 
+                    image: movieData ? movieData.poster : null, backdrop: movieData ? movieData.backdrop : null,
+                    year: movieData ? movieData.year : (prog.match(/<date>(\d{4})<\/date>/)?.[1] || null),
+                    actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null,
                     imdbRate: movieData ? movieData.rating : null,
                     rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
                     genres: movieData ? movieData.genres : null, language: movieData ? movieData.language : null,
@@ -180,7 +208,7 @@ async function updateTVGuide() {
         else allMovies.push(newMovie);
     }
 
-    const clearLimit = Date.now() - (7 * 24 * 60 * 60 * 1000); 
+    const clearLimit = Date.now() - (7 * 24 * 60 * 60 * 1000);
     allMovies = allMovies.filter(m => m.startTime >= clearLimit).sort((a, b) => a.startTime - b.startTime);
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
 }
@@ -190,7 +218,7 @@ async function updateSVTPlay() {
     if (!TMDB_KEY) return;
     const todayStr = getSwedishDate();
     console.log(`\n▶️ --- Synkar SVT Play (Upsert) ---`);
-    
+
     let existingMovies = [];
     try {
         if (fs.existsSync('svtplay.json')) {
@@ -219,12 +247,14 @@ async function updateSVTPlay() {
                 if (currentSweepIds.has(movie.id)) continue;
                 currentSweepIds.add(movie.id);
 
-                // Robust sökning i befintlig data
                 let existing = existingMovies.find(m => m.tmdbId === movie.id || (m.title === movie.title && m.year === movie.release_date?.substring(0,4)));
 
-                if (existing && existing.imdbRate !== null) {
+                // Kolla om filmen har ett RIKTIGT betyg (inte null och inte N/A)
+                const hasValidRating = existing && existing.imdbRate !== null && existing.imdbRate !== "N/A";
+
+                if (hasValidRating) {
                     console.log(`♻️  Behåller: ${movie.title}`);
-                    existing.stillPresent = true; 
+                    existing.stillPresent = true;
                     newOrUpdatedList.push(existing);
                 } else {
                     if (existing) console.log(`🔧 Lagar betyg: ${movie.title}`);
@@ -234,13 +264,13 @@ async function updateSVTPlay() {
                     if (details && details.genres) {
                         newOrUpdatedList.push({
                             tmdbId: movie.id, title: movie.title, channel: "SVT Play",
-                            image: details.poster, backdrop: details.backdrop, 
+                            image: details.poster, backdrop: details.backdrop,
                             year: details.year, actors: details.actors, director: details.director,
                             imdbRate: details.rating, rottenRate: details.rottenRate, metaRate: details.metaRate,
                             genres: details.genres, language: details.language, desc: details.desc || movie.overview,
                             imdbUrl: details.imdbId ? `https://www.imdb.com/title/${details.imdbId}/` : null,
                             runtime: details.runtime,
-                            addedDate: (existing && existing.addedDate) ? existing.addedDate : todayStr, // BEHÅLL GAMMALT DATUM OM DET FINNS
+                            addedDate: (existing && existing.addedDate) ? existing.addedDate : todayStr,
                             stillPresent: true
                         });
                         await new Promise(r => setTimeout(r, 200));

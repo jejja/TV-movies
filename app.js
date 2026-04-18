@@ -30,7 +30,9 @@ function toggleMenu() {
 
 function openSharedModal(m, source) {
     document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
-    document.getElementById('modalRating').innerText = m.imdbRate ? `★ ${m.imdbRate}` : '★ -';
+
+    // N/A kontroll för betyget i modalen
+    document.getElementById('modalRating').innerText = (m.imdbRate && m.imdbRate !== "N/A") ? `★ ${m.imdbRate}` : '★ -';
 
     if (m.rottenRate) {
         document.getElementById('rtWrap').style.display = 'flex';

@@ -16,7 +16,6 @@ function getSwedishDate() {
     }).format(new Date());
 }
 
-// NYTT: Vi skickar nu med "movieTitle" för att kunna logga snyggt!
 async function getMovieDetails(tmdbId, movieTitle) {
     if (!TMDB_KEY) return null;
     try {
@@ -38,7 +37,7 @@ async function getMovieDetails(tmdbId, movieTitle) {
         const language = tmdbDetailsData.original_language || null;
         const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
-        // --- EXTREMT TYDLIG LOGGNING FÖR OMDB ---
+        // --- SMARTARE OMDB LOGIK ---
         if (!imdbId) {
             console.log(`      -> ⚠️ TMDB saknar IMDb-ID för "${movieTitle}". Sätter N/A.`);
             imdbRating = "N/A";
@@ -97,7 +96,6 @@ async function getMovieInfoByTitle(title) {
         const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${safeTitle}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
-            // Skickar med titeln till getMovieDetails
             return await getMovieDetails(tmdbSearchData.results[0].id, title);
         }
     } catch (e) {}
@@ -269,7 +267,6 @@ async function updateSVTPlay() {
                     if (existing) console.log(`🔧 Lagar betyg: ${movie.title}`);
                     else console.log(`✨ NY FILM: ${movie.title}`);
 
-                    // Skickar med titeln för snyggare loggar!
                     const details = await getMovieDetails(movie.id, movie.title);
                     if (details && details.genres) {
                         newOrUpdatedList.push({

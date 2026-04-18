@@ -154,10 +154,11 @@
             newBadgeHTML = `<div class="new-badge">${agoStr}</div>`;
         }
 
+        // N/A skydd här också
         return `
             <div class="movie-card" onclick="openModalByIndex(${index})">
                 <div class="poster-container">
-                    ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                    ${(m.imdbRate && m.imdbRate !== "N/A") ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
                     ${newBadgeHTML}
                     ${posterHTML}
                 </div>

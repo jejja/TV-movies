@@ -91,11 +91,11 @@
         const posterHTML = m.image ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">` : `<span class="poster-placeholder">⭐</span>`;
         const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-        // Fixad layout för badge inuti poster-container
+        // N/A-skydd på imdb-badge
         return `
             <div class="movie-card" onclick="openModalById('${m.startTime}-${safeTitle}')">
                 <div class="poster-container">
-                    ${m.imdbRate ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
+                    ${(m.imdbRate && m.imdbRate !== "N/A") ? `<div class="imdb-badge">★ ${m.imdbRate}</div>` : ''}
                     ${posterHTML}
                 </div>
                 <div class="info">

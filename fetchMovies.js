@@ -16,7 +16,8 @@ function getSwedishDate() {
     }).format(new Date());
 }
 
-async function getMovieDetails(tmdbId) {
+// NYTT: Vi skickar nu med "movieTitle" för att kunna logga snyggt!
+async function getMovieDetails(tmdbId, movieTitle) {
     if (!TMDB_KEY) return null;
     try {
         const tmdbDetailsRes = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_KEY}&language=sv-SE&append_to_response=credits`);
@@ -37,28 +38,32 @@ async function getMovieDetails(tmdbId) {
         const language = tmdbDetailsData.original_language || null;
         const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
-        // --- SMARTARE OMDB LOGIK ---
+        // --- EXTREMT TYDLIG LOGGNING FÖR OMDB ---
         if (!imdbId) {
-            // Om TMDB inte har något IMDb-ID, kostar det 0 anrop att sätta N/A
+            console.log(`      -> ⚠️ TMDB saknar IMDb-ID för "${movieTitle}". Sätter N/A.`);
             imdbRating = "N/A";
-        } else if (OMDB_KEY && !omdbLimitReached) {
+        } else if (omdbLimitReached) {
+            console.log(`      -> ⏭️ Hoppar över OMDb för "${movieTitle}" (API-gränsen är redan nådd).`);
+            // Lämnas som null så den kan försökas igen imorgon
+        } else if (OMDB_KEY) {
             try {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
                 const omdbData = await omdbRes.json();
 
                 if (omdbData.Response === "False") {
                     if (omdbData.Error && omdbData.Error.toLowerCase().includes("limit")) {
-                        console.log(`   🛑 OMDb-gräns nådd! Avbryter fler betygssökningar idag.`);
+                        console.log(`      -> 🛑 OMDb-gräns nådd vid sökning efter "${movieTitle}"! Avbryter fler betygssökningar idag.`);
                         omdbLimitReached = true;
-                        // imdbRating lämnas som null så den kan lagas imorgon
                     } else {
-                        // Något annat fel (t.ex. fel ID)
+                        console.log(`      -> ❌ OMDb returnerade fel för "${movieTitle}": ${omdbData.Error}. Sätter N/A.`);
                         imdbRating = "N/A";
                     }
                 } else {
                     if (omdbData.imdbRating && omdbData.imdbRating !== "N/A") {
+                        console.log(`      -> ✅ Fick betyg från OMDb för "${movieTitle}": ${omdbData.imdbRating}`);
                         imdbRating = omdbData.imdbRating;
                     } else {
+                        console.log(`      -> 🤷‍♂️ OMDb hittade filmen "${movieTitle}", men saknar betyg (N/A). Sätter N/A.`);
                         imdbRating = "N/A";
                     }
 
@@ -69,7 +74,9 @@ async function getMovieDetails(tmdbId) {
                         if (mc) metaRating = mc.Value;
                     }
                 }
-            } catch (err) {}
+            } catch (err) {
+                console.log(`      -> ⚠️ Nätverksfel vid kontakt med OMDb för "${movieTitle}".`);
+            }
         }
 
         return {
@@ -77,7 +84,10 @@ async function getMovieDetails(tmdbId) {
             rating: imdbRating, rottenRate: rottenRating, metaRate: metaRating,
             imdbId, runtime: actualRuntime, year, actors, director, genres, language
         };
-    } catch (e) { return null; }
+    } catch (e) {
+        console.log(`      -> ⚠️ Kritiskt fel i getMovieDetails för "${movieTitle}":`, e.message);
+        return null;
+    }
 }
 
 async function getMovieInfoByTitle(title) {
@@ -87,7 +97,8 @@ async function getMovieInfoByTitle(title) {
         const tmdbSearchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${safeTitle}&language=sv-SE&page=1`);
         const tmdbSearchData = await tmdbSearchRes.json();
         if (tmdbSearchData.results && tmdbSearchData.results.length > 0) {
-            return await getMovieDetails(tmdbSearchData.results[0].id);
+            // Skickar med titeln till getMovieDetails
+            return await getMovieDetails(tmdbSearchData.results[0].id, title);
         }
     } catch (e) {}
     return null;
@@ -173,7 +184,6 @@ async function updateTVGuide() {
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
             const existingMovie = allMovies.find(m => m.title === title && m.startTime === startTimeMs);
 
-            // Kolla om filmen har ett RIKTIGT betyg (inte null och inte N/A)
             const hasValidRating = existingMovie && existingMovie.imdbRate !== null && existingMovie.imdbRate !== "N/A";
 
             if (hasValidRating) {
@@ -249,7 +259,6 @@ async function updateSVTPlay() {
 
                 let existing = existingMovies.find(m => m.tmdbId === movie.id || (m.title === movie.title && m.year === movie.release_date?.substring(0,4)));
 
-                // Kolla om filmen har ett RIKTIGT betyg (inte null och inte N/A)
                 const hasValidRating = existing && existing.imdbRate !== null && existing.imdbRate !== "N/A";
 
                 if (hasValidRating) {
@@ -260,7 +269,8 @@ async function updateSVTPlay() {
                     if (existing) console.log(`🔧 Lagar betyg: ${movie.title}`);
                     else console.log(`✨ NY FILM: ${movie.title}`);
 
-                    const details = await getMovieDetails(movie.id);
+                    // Skickar med titeln för snyggare loggar!
+                    const details = await getMovieDetails(movie.id, movie.title);
                     if (details && details.genres) {
                         newOrUpdatedList.push({
                             tmdbId: movie.id, title: movie.title, channel: "SVT Play",

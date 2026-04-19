@@ -43,7 +43,6 @@ async function getMovieDetails(tmdbId, movieTitle) {
             imdbRating = "N/A";
         } else if (omdbLimitReached) {
             console.log(`      -> ⏭️ Hoppar över OMDb för "${movieTitle}" (API-gränsen är redan nådd).`);
-            // Lämnas som null så den kan försökas igen imorgon
         } else if (OMDB_KEY) {
             try {
                 const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
@@ -151,16 +150,19 @@ async function updateTVGuide() {
 
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
-        const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/^Dox:\s*/i, '');
+
+        // Ändrad till "let" så vi kan bygga ihop titeln!
+        let title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/^Dox:\s*/i, '');
+
+        // 1. FÅNGA UPP SUB-TITLE FÖR TV-FILMER OCH FRANCHISER
+        const subTitleMatch = prog.match(/<sub-title[^>]*>(.*?)<\/sub-title>/);
+        if (subTitleMatch) {
+            const subTitle = subTitleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+            title = `${title}: ${subTitle}`;
+        }
 
         const categoryMatches = [...prog.matchAll(/<category[^>]*>(.*?)<\/category>/gi)].map(m => m[1]);
         const catsLower = categoryMatches.join(', ').toLowerCase();
-
-        const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy", "kriminal", "crime", "deckare", "mysterie", "mystery", "romantik", "romance"];
-        if (!movieKeywords.some(key => catsLower.includes(key))) continue;
-
-        const hardExcludeKeywords = ["series", "serie", "nyheter", "news", "theater"];
-        if (hardExcludeKeywords.some(key => catsLower.includes(key))) continue;
 
         const startMatch = prog.match(/start="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
         const stopMatch = prog.match(/stop="(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?"/);
@@ -177,7 +179,19 @@ async function updateTVGuide() {
         let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
         const stopTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
 
-        if ((stopTimeMs - startTimeMs) / 60000 < 50) continue;
+        const durationMins = (stopTimeMs - startTimeMs) / 60000;
+        if (durationMins < 50) continue;
+
+        // 2. FILTRERING OCH SPECIALREGEL FÖR TV-FILMER
+        const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy", "kriminal", "crime", "deckare", "mysterie", "mystery", "romantik", "romance"];
+        if (!movieKeywords.some(key => catsLower.includes(key))) continue;
+
+        const hardExcludeKeywords = ["nyheter", "news", "theater"]; // Tog bort "series" härifrån...
+        if (hardExcludeKeywords.some(key => catsLower.includes(key))) continue;
+
+        // ...och la till den här så vi kan släppa igenom avsnitt längre än 80 minuter!
+        const isSeries = ["series", "serie"].some(key => catsLower.includes(key));
+        if (isSeries && durationMins < 80) continue;
 
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
             const existingMovie = allMovies.find(m => m.title === title && m.startTime === startTimeMs);

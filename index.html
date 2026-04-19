@@ -25,6 +25,13 @@
     <button class="menu-btn" onclick="toggleMenu()">☰</button>
 </div>
 
+<div class="search-container" id="searchContainer" style="display: none;">
+    <div class="search-wrapper">
+        <input type="text" id="tvSearchInput" class="search-input" placeholder="🔍 Sök på titel, skådespelare, regissör, genre..." oninput="toggleClearBtn('tvSearchInput', 'tvClearBtn'); render()">
+        <button id="tvClearBtn" class="clear-btn" onclick="clearSearch('tvSearchInput', 'tvClearBtn')">✕</button>
+    </div>
+</div>
+
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
 <div id="sideMenu" class="side-menu">
     <button class="menu-close" onclick="toggleMenu()">✕</button>
@@ -74,6 +81,11 @@
     let currentTab = 'today';
     let allMoviesData = [];
 
+    // Säker funktion som byter ut en trasig bild mot text
+    function fallbackLogo(imgElement, chName) {
+        imgElement.outerHTML = `<h2 class="section-title" style="margin:0;">${chName}</h2>`;
+    }
+
     async function init() {
         try {
             const res = await fetch('movies.json?cb=' + Date.now());
@@ -91,7 +103,6 @@
         const posterHTML = m.image ? `<img class="poster" src="${m.image}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'poster-placeholder\'>⭐</span>'">` : `<span class="poster-placeholder">⭐</span>`;
         const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-        // N/A-skydd på imdb-badge
         return `
             <div class="movie-card" onclick="openModalById('${m.startTime}-${safeTitle}')">
                 <div class="poster-container">
@@ -110,6 +121,9 @@
         const root = document.getElementById('movie-grid');
         root.innerHTML = "";
 
+        const searchInput = document.getElementById('tvSearchInput');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+
         const now = new Date();
         const logicalDay = new Date(now.getTime() - 5 * 60 * 60 * 1000);
         logicalDay.setHours(5, 0, 0, 0);
@@ -118,6 +132,17 @@
         let moviesToDisplay = (currentTab === 'today')
             ? allMoviesData.filter(m => m.startTime >= startOfTodayMs)
             : allMoviesData.filter(m => m.startTime < startOfTodayMs);
+
+        if (searchTerm !== "") {
+            moviesToDisplay = moviesToDisplay.filter(m => {
+                const titleMatch = m.title && m.title.toLowerCase().includes(searchTerm);
+                const actorMatch = m.actors && m.actors.toLowerCase().includes(searchTerm);
+                const dirMatch = m.director && m.director.toLowerCase().includes(searchTerm);
+                const genreMatch = m.genres && m.genres.toLowerCase().includes(searchTerm);
+                const catMatch = m.originalCategory && m.originalCategory.toLowerCase().includes(searchTerm);
+                return titleMatch || actorMatch || dirMatch || genreMatch || catMatch;
+            });
+        }
 
         const topMovies = moviesToDisplay.filter(m => parseFloat(m.imdbRate) >= 7.0);
         if (topMovies.length > 0) {
@@ -136,12 +161,25 @@
             if (currentTab === 'history') chMovies.sort((a, b) => b.startTime - a.startTime);
             else chMovies.sort((a, b) => a.startTime - b.startTime);
 
-            const chSection = document.createElement('div');
-            chSection.innerHTML = `
-                <h2 class="section-title">📺 ${ch}</h2>
-                <div class="container" style="padding-top:0;">${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer planerade</div>'}</div>
-            `;
-            root.appendChild(chSection);
+            if (chMovies.length > 0 || searchTerm === "") {
+                const chSection = document.createElement('div');
+
+                // Hämta loggan som vi sög ut från EPG:n!
+                const logoUrl = chMovies.length > 0 ? chMovies[0].channelLogo : null;
+
+                const fallbackText = `<h2 class="section-title" style="margin:0;">${ch}</h2>`;
+                const headerHtml = logoUrl
+                    ? `<img src="${logoUrl}" alt="${ch}" class="tv-pic" style="filter: drop-shadow(0px 0px 4px rgba(255,255,255,0.5));" onerror="fallbackLogo(this, '${ch}')">`
+                    : fallbackText;
+
+                chSection.innerHTML = `
+                    <div class="channel-header">${headerHtml}</div>
+                    <div class="container" style="padding-top:0;">
+                        ${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer matchar sökningen</div>'}
+                    </div>
+                `;
+                root.appendChild(chSection);
+            }
         });
     }
 
@@ -149,6 +187,20 @@
         currentTab = tab;
         document.getElementById('tab-today').classList.toggle('active', tab === 'today');
         document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+
+        const searchContainer = document.getElementById('searchContainer');
+        const searchInput = document.getElementById('tvSearchInput');
+
+        if (tab === 'history') {
+            searchContainer.style.display = 'block';
+        } else {
+            searchContainer.style.display = 'none';
+            if (searchInput) {
+                searchInput.value = '';
+                toggleClearBtn('tvSearchInput', 'tvClearBtn');
+            }
+        }
+
         render();
     }
 

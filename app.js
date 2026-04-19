@@ -31,7 +31,6 @@ function toggleMenu() {
 function openSharedModal(m, source) {
     document.getElementById('modalTitle').innerText = m.title + (m.year ? ` (${m.year})` : '');
 
-    // N/A kontroll för betyget i modalen
     document.getElementById('modalRating').innerText = (m.imdbRate && m.imdbRate !== "N/A") ? `★ ${m.imdbRate}` : '★ -';
 
     if (m.rottenRate) {
@@ -106,6 +105,25 @@ function closeModal(event, fromPopState = false) {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
         if (!fromPopState) history.back();
+    }
+}
+
+// Funktioner för sökfältets rensa-knapp
+function toggleClearBtn(inputId, btnId) {
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if (input && btn) {
+        btn.style.display = input.value.length > 0 ? 'block' : 'none';
+    }
+}
+
+function clearSearch(inputId, btnId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value = '';
+        toggleClearBtn(inputId, btnId);
+        // Trigga en "oninput" så att render() körs och listan uppdateras direkt
+        input.dispatchEvent(new Event('input'));
     }
 }
 

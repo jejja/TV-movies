@@ -20,6 +20,13 @@
     <button class="menu-btn" onclick="toggleMenu()">☰</button>
 </div>
 
+<div class="search-container">
+    <div class="search-wrapper">
+        <input type="text" id="svtSearchInput" class="search-input" placeholder="🔍 Sök på titel, skådespelare, regissör, genre..." oninput="toggleClearBtn('svtSearchInput', 'svtClearBtn'); render()">
+        <button id="svtClearBtn" class="clear-btn" onclick="clearSearch('svtSearchInput', 'svtClearBtn')">✕</button>
+    </div>
+</div>
+
 <div class="filter-container">
     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Alla</button>
     <button class="filter-btn" data-filter="film" onclick="setFilter('film')">Spelfilm</button>
@@ -154,7 +161,6 @@
             newBadgeHTML = `<div class="new-badge">${agoStr}</div>`;
         }
 
-        // N/A skydd här också
         return `
             <div class="movie-card" onclick="openModalByIndex(${index})">
                 <div class="poster-container">
@@ -184,6 +190,7 @@
         root.innerHTML = "";
 
         const selectedMinYear = parseInt(document.getElementById('yearSlider').value) || 1900;
+        const searchTerm = document.getElementById('svtSearchInput').value.toLowerCase();
 
         let filteredMovies = allMoviesData.filter(m => {
             const movieYear = parseInt(m.year) || 0;
@@ -191,11 +198,21 @@
 
             const genres = (m.genres || "").toLowerCase();
             const isDoc = genres.includes("documentary") || genres.includes("dokumentär");
-            const isMusic = genres.includes("music") || genres.includes("musik");
+            const hasMusic = genres.includes("music") || genres.includes("musik");
+            const isMusicCategory = hasMusic && (isDoc || !genres.includes(","));
 
-            if (currentFilter === 'documentary') return isDoc;
-            if (currentFilter === 'music') return isMusic;
-            if (currentFilter === 'film') return !isDoc && !isMusic;
+            if (currentFilter === 'documentary' && !isDoc) return false;
+            if (currentFilter === 'music' && !isMusicCategory) return false;
+            if (currentFilter === 'film' && (isDoc || isMusicCategory)) return false;
+
+            if (searchTerm !== "") {
+                const titleMatch = m.title && m.title.toLowerCase().includes(searchTerm);
+                const actorMatch = m.actors && m.actors.toLowerCase().includes(searchTerm);
+                const dirMatch = m.director && m.director.toLowerCase().includes(searchTerm);
+                const genreMatch = m.genres && m.genres.toLowerCase().includes(searchTerm);
+
+                if (!titleMatch && !actorMatch && !dirMatch && !genreMatch) return false;
+            }
 
             return true;
         });
@@ -213,7 +230,7 @@
         });
 
         if (currentDisplayMovies.length === 0) {
-            root.innerHTML = `<div class="empty-channel">Inga filmer matchar din sökning.</div>`;
+            root.innerHTML = `<div class="empty-channel">Inga filmer matchar dina filter eller sökning.</div>`;
             return;
         }
 

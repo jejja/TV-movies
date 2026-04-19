@@ -130,6 +130,17 @@ async function updateTVGuide() {
         return;
     }
 
+    const channelLogos = {};
+    const channelBlocks = xml.split('<channel ');
+    for (let i = 1; i < channelBlocks.length; i++) {
+        const block = channelBlocks[i].split('</channel>')[0];
+        const idMatch = block.match(/id="(.*?)"/);
+        const iconMatch = block.match(/<icon src="(.*?)"/);
+        if (idMatch && iconMatch) {
+            channelLogos[idMatch[1]] = iconMatch[1];
+        }
+    }
+
     const programmes = xml.split('<programme');
     const channelMap = {
         "[SVT1HD].SVT1.HD.se": "SVT1", "[SVT2HD].SVT2.HD.se": "SVT2", "[TV3HD].TV3.HD.se": "TV3",
@@ -146,6 +157,8 @@ async function updateTVGuide() {
         const rawId = channelMatch[1];
         const cleanChannelName = channelMap[rawId];
         if (!cleanChannelName) continue;
+
+        const channelLogo = channelLogos[rawId] || null;
 
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
@@ -195,6 +208,7 @@ async function updateTVGuide() {
 
             if (hasValidRating) {
                 console.log(`♻️ Behåller data (TV): ${title}`);
+                existingMovie.channelLogo = channelLogo;
                 moviesToday.push(existingMovie);
             } else {
                 if (existingMovie) console.log(`🔧 Lagar betyg (TV): ${title}`);
@@ -208,7 +222,7 @@ async function updateTVGuide() {
                 }
 
                 moviesToday.push({
-                    title, channel: cleanChannelName, originalChannel: rawId, originalCategory: categoryMatches.join(', '),
+                    title, channel: cleanChannelName, channelLogo, originalChannel: rawId, originalCategory: categoryMatches.join(', '),
                     startTime: startTimeMs, endTime: stopTimeMs,
                     image: movieData.poster, backdrop: movieData.backdrop,
                     year: movieData.year,

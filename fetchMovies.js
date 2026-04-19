@@ -60,7 +60,7 @@ async function getMovieDetails(tmdbId, movieTitle) {
                         console.log(`      -> ✅ Fick betyg från OMDb för "${movieTitle}": ${omdbData.imdbRating}`);
                         imdbRating = omdbData.imdbRating;
                     } else {
-                        console.log(`      -> 🤷‍♂️ OMDb hittade filmen "${movieTitle}", men saknar betyg (N/A). Sätter N/A.`);
+                        console.log(`      -> 🤷‍♂️ OMDb hittade filmen "${movieTitle}" med imdbId: "${imdbId}", men saknar betyg (N/A). Sätter N/A.`);
                         imdbRating = "N/A";
                     }
 

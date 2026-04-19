@@ -1,71 +1,5 @@
 [
   {
-    "title": "Carrot Cake: A Hannah Swensen Mystery",
-    "channel": "TV8",
-    "originalChannel": "[TV8HD].TV8.HD.se",
-    "originalCategory": "Movie, Mystery",
-    "startTime": 1775980200000,
-    "endTime": 1775988000000,
-    "image": "https://image.tmdb.org/t/p/w500/yLYAq5d6pk8mXKzigfwcBn543lf.jpg",
-    "backdrop": "https://image.tmdb.org/t/p/w1280/tyHaNhob4jwq6XcB5t6C6dyEd75.jpg",
-    "year": "2023",
-    "actors": "Alison Sweeney, Cameron Mathison, Barbara Niven",
-    "director": "Pat Williams",
-    "imdbRate": null,
-    "rottenRate": null,
-    "metaRate": null,
-    "genres": "TV Movie, Mystery",
-    "language": "en",
-    "desc": "A skeleton found in Lake Eden reveals the true identity of a beloved resident. Despite her fiancé's disapproval, Hannah investigates the murder and enlists her mother's help to uncover the truth and bring the killer to justice.",
-    "imdbUrl": "https://www.imdb.com/title/tt26928076/",
-    "runtime": 84,
-    "date": "2026-04-12"
-  },
-  {
-    "title": "Harry Potter och dödsrelikerna: Del 2",
-    "channel": "TV3",
-    "originalChannel": "[TV3HD].TV3.HD.se",
-    "originalCategory": "Movie, Fantasy, Adventure, Mystery, Thriller",
-    "startTime": 1775983800000,
-    "endTime": 1775994300000,
-    "image": "https://image.tmdb.org/t/p/w500/c54HpQmuwXjHq2C9wmoACjxoom3.jpg",
-    "backdrop": "https://image.tmdb.org/t/p/w1280/cbcpDn6XJaIGoOil1bKuskU8ds4.jpg",
-    "year": "2011",
-    "actors": "Daniel Radcliffe, Emma Watson, Rupert Grint",
-    "director": "David Yates",
-    "imdbRate": null,
-    "rottenRate": null,
-    "metaRate": null,
-    "genres": "Adventure, Fantasy",
-    "language": "en",
-    "desc": "Harry, Ron and Hermione continue their quest to vanquish the evil Voldemort once and for all. Just as things begin to look hopeless for the young wizards, Harry discovers a trio of magical objects that endow him with powers to rival Voldemort's formidable skills.",
-    "imdbUrl": "https://www.imdb.com/title/tt1201607/",
-    "runtime": 130,
-    "date": "2026-04-12"
-  },
-  {
-    "title": "Förintade toner",
-    "channel": "SVT2",
-    "originalChannel": "[SVT2HD].SVT2.HD.se",
-    "originalCategory": "Movie, Documentary, Music",
-    "startTime": 1775984400000,
-    "endTime": 1775988000000,
-    "image": null,
-    "backdrop": null,
-    "year": "2026",
-    "actors": null,
-    "director": null,
-    "imdbRate": null,
-    "rottenRate": null,
-    "metaRate": null,
-    "genres": null,
-    "language": null,
-    "desc": "Musikdokumentär om nazisternas plundring och utrensning av judiskt musikliv under 1930- och 1940-talet. Filmen följer dirigenten Sofia Winiarskis arbete med att sätta upp scenföreställningen Stulen musik på Folkoperan i Stockholm.",
-    "imdbUrl": null,
-    "runtime": null,
-    "date": "2026-04-12"
-  },
-  {
     "title": "Big Daddy",
     "channel": "TV6",
     "originalChannel": "[TV6HD].TV6.HD.se",
@@ -1909,7 +1843,8 @@
     "desc": "Don och Ellie Griffin har varit skilda i flera år. De har bara inte berättat det för alla! Så när det stora bröllopet stundar för adoptivsonen - och framförallt när hans ultrakonservativa biologiska mamma är inbjuden - måste stridstupparna förvandla sig till turturduvor ännu en gång. Men kan familjen hålla masken? Kan Don och Ellies nya respektive spela med? Och kan Don och Ellie själva låta bli att slå ihjäl varandra?",
     "imdbUrl": "https://www.imdb.com/title/tt1931435/",
     "runtime": 89,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s76806_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "A Nashville Legacy",
@@ -1931,7 +1866,8 @@
     "desc": "Naima flyttar till musikstaden Nashville för att hitta hemligheten bakom en oupptäckt musikgrupp.",
     "imdbUrl": "https://www.imdb.com/title/tt25391134/",
     "runtime": 84,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s98336_ll_h15_ab.png?w=360&amp;h=270"
   },
   {
     "title": "Karate Kid - sanningens ögonblick",
@@ -1953,7 +1889,8 @@
     "desc": "Daniel flyttar till en ny stad och blir genast trakasserad av den f.d. pojkvännen till den tjej han är intresserad av. Daniel bestämmer sig för att börja träna karate och av en händelse är Miyagi, vicevärden i hans hyreshus, en gammal karate-mästare. Miyagi tar sig an Daniel och lär honom att karate handlar om mer än att slåss och under träningen växer en stark vänskap fram mellan de båda. Så närmar sig en stor karatetävling och Daniel ser en chans att ge igen på sina mobbare.",
     "imdbUrl": "https://www.imdb.com/title/tt0087538/",
     "runtime": 128,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s83524_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "Exit, Stage Death",
@@ -1975,7 +1912,8 @@
     "desc": "Fotografen Allie är backstage när en ny pjäs om ett mordmysterium har premiär och hittar pjäsens huvudperson mördad innan ridån ens gått upp.",
     "imdbUrl": "https://www.imdb.com/title/tt11686316/",
     "runtime": 80,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s98336_ll_h15_ab.png?w=360&amp;h=270"
   },
   {
     "title": "The Gentlemen",
@@ -1997,7 +1935,8 @@
     "desc": "Amerikanen Mickey Pearson har skapat ett mycket lönsamt marijuanaimperium i London. När ryktet sprids att Pearson vill sälja sin lukrativa verksamhet till högstbjudande, sparkar det igång intriger, mutor och utpressning.",
     "imdbUrl": "https://www.imdb.com/title/tt8367814/",
     "runtime": 114,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s76806_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "Corrective Measures",
@@ -2019,7 +1958,8 @@
     "desc": "I världens farligaste högsäkerhetsfängelse, som är hemvist för de mest förrädiska brottslingarna, ökar spänningarna mellan de intagna och personalen. Snart leder det till anarki i fängelset och ordningen vänds upp och ner.",
     "imdbUrl": "https://www.imdb.com/title/tt15391770/",
     "runtime": 106,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s83524_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "Beck: Hämndens pris",
@@ -2041,7 +1981,8 @@
     "desc": "Dag Sjöberg, Victor Bengtsson och Santos Golenza är tre unga förbrytare. Då de får punktering efter ett inbrott på ett regemente erbjuder två poliser dem hjälp. En av poliserna känner igen Sjöberg och dessutom är bilen full av stulna sprängämnen och vapen. De båda poliserna hittas mördade dagen därpå. Martin Beck och hans kollegor får till uppgift att hitta mördarna.  För Gunvald Larsson innebär det en personlig kris eftersom han var vän med en av de mördade poliserna och börjar leta efter mördarna på egen hand.",
     "imdbUrl": "https://www.imdb.com/title/tt0276808/",
     "runtime": 96,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s76807_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "Vote One For Love",
@@ -2063,7 +2004,8 @@
     "desc": "Candace skickas från den politiska hetluften i Washington för att hjälpa till med borgmästarvalet i hennes lilla hemstad.",
     "imdbUrl": "https://www.imdb.com/title/tt29145891/",
     "runtime": 90,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s108964_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "No Good Deed",
@@ -2085,7 +2027,8 @@
     "desc": "En före detta åklagare och hennes barn kidnappas av en förrymd brottsling som utger sig vara ett offer i en bilolycka.",
     "imdbUrl": "https://www.imdb.com/title/tt2011159/",
     "runtime": 84,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s83524_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "Scream 3",
@@ -2107,7 +2050,8 @@
     "desc": "Utspelas i Hollywood under inspelningen av \"Stab 3 - Return to Woodsboro\", en thriller som ställer nya frågor om de händelser som skrämde en hel stad - och fortsätter att skrämma Sidney Prescott. Hon har tagit sin tillflykt till ett avlägset beläget hus i norra Kalifornien.",
     "imdbUrl": "https://www.imdb.com/title/tt0134084/",
     "runtime": 116,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s98333_ll_h15_ab.png?w=360&amp;h=270"
   },
   {
     "title": "London Has Fallen",
@@ -2129,7 +2073,8 @@
     "desc": "Englands premiärminister dör under mystiska omständigheter. Världens ledare samlas på hans begravning. Men den välbevakade händelsen visar sig vara en dödlig plan för att ta livet av dem alla. Bara tre personer kan stoppa planen: USA:s president, hans säkerhetschef, och en brittisk MI6-agent som inte litar på någon.",
     "imdbUrl": "https://www.imdb.com/title/tt3300542/",
     "runtime": 99,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s83524_ll_h15_aa.png?w=360&amp;h=270"
   },
   {
     "title": "The Woman King",
@@ -2151,6 +2096,7 @@
     "desc": "Agojie är en kvinnlig armé som med skicklighet och en hängivenhet som tidigare inte skådats skyddar det afrikanska kungadömet Dahomey på 1800-talet. General Nanisca tränar nästa generation av rekryter och förbereder dem för strid mot en fiende som är fast besluten att förgöra dem. Vissa saker är värda att slåss för ...",
     "imdbUrl": "https://www.imdb.com/title/tt8093700/",
     "runtime": 135,
-    "date": "2026-04-19"
+    "date": "2026-04-19",
+    "channelLogo": "http://dtil.tmsimg.com/assets/s76806_ll_h15_aa.png?w=360&amp;h=270"
   }
 ]

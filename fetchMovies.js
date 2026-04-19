@@ -37,7 +37,6 @@ async function getMovieDetails(tmdbId, movieTitle) {
         const language = tmdbDetailsData.original_language || null;
         const genres = tmdbDetailsData.genres ? tmdbDetailsData.genres.map(g => g.name).join(', ') : null;
 
-        // --- SMARTARE OMDB LOGIK ---
         if (!imdbId) {
             console.log(`      -> ⚠️ TMDB saknar IMDb-ID för "${movieTitle}". Sätter N/A.`);
             imdbRating = "N/A";
@@ -151,10 +150,8 @@ async function updateTVGuide() {
         const titleMatch = prog.match(/<title[^>]*>(.*?)<\/title>/);
         if (!titleMatch) continue;
 
-        // Ändrad till "let" så vi kan bygga ihop titeln!
         let title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/^Dox:\s*/i, '');
 
-        // 1. FÅNGA UPP SUB-TITLE FÖR TV-FILMER OCH FRANCHISER
         const subTitleMatch = prog.match(/<sub-title[^>]*>(.*?)<\/sub-title>/);
         if (subTitleMatch) {
             const subTitle = subTitleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
@@ -169,33 +166,31 @@ async function updateTVGuide() {
         if (!startMatch || !stopMatch) continue;
 
         const progStartDate = `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}`;
-        const progHour = parseInt(startMatch[4]);
-        const isToday = (progStartDate === todayStr);
-        const isEarlyTomorrow = (progStartDate === tomorrowEarlyStr && progHour < 5);
-        if (!isToday && !isEarlyTomorrow) continue;
-
-        let offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
+        const offset = startMatch[7] ? startMatch[7].substring(0, 3) + ':' + startMatch[7].substring(3, 5) : "+02:00";
         const startTimeMs = new Date(`${progStartDate}T${startMatch[4]}:${startMatch[5]}:${startMatch[6]}${offset}`).getTime();
-        let stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
+        const stopOffset = stopMatch[7] ? stopMatch[7].substring(0, 3) + ':' + stopMatch[7].substring(3, 5) : "+02:00";
         const stopTimeMs = new Date(`${stopMatch[1]}-${stopMatch[2]}-${stopMatch[3]}T${stopMatch[4]}:${stopMatch[5]}:${stopMatch[6]}${stopOffset}`).getTime();
 
         const durationMins = (stopTimeMs - startTimeMs) / 60000;
         if (durationMins < 50) continue;
 
-        // 2. FILTRERING OCH SPECIALREGEL FÖR TV-FILMER
         const movieKeywords = ["film", "movie", "spelfilm", "action", "drama", "thriller", "sci-fi", "rysare", "skräck", "komedi", "comedy", "äventyr", "fantasy", "kriminal", "crime", "deckare", "mysterie", "mystery", "romantik", "romance"];
         if (!movieKeywords.some(key => catsLower.includes(key))) continue;
 
-        const hardExcludeKeywords = ["nyheter", "news", "theater"]; // Tog bort "series" härifrån...
+        const hardExcludeKeywords = ["nyheter", "news", "theater"];
         if (hardExcludeKeywords.some(key => catsLower.includes(key))) continue;
 
-        // ...och la till den här så vi kan släppa igenom avsnitt längre än 80 minuter!
         const isSeries = ["series", "serie"].some(key => catsLower.includes(key));
         if (isSeries && durationMins < 80) continue;
 
+        const progHour = parseInt(startMatch[4]);
+        const isToday = (progStartDate === todayStr);
+        const tomorrowEarlyStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now.getTime() + 86400000));
+        const isEarlyTomorrow = (progStartDate === tomorrowEarlyStr && progHour < 5);
+        if (!isToday && !isEarlyTomorrow) continue;
+
         if (!moviesToday.find(m => m.title === title && m.channel === cleanChannelName && m.startTime === startTimeMs)) {
             const existingMovie = allMovies.find(m => m.title === title && m.startTime === startTimeMs);
-
             const hasValidRating = existingMovie && existingMovie.imdbRate !== null && existingMovie.imdbRate !== "N/A";
 
             if (hasValidRating) {
@@ -206,18 +201,24 @@ async function updateTVGuide() {
                 else console.log(`🎬 MATCH (TV): ${title}`);
 
                 const movieData = await getMovieInfoByTitle(title);
+
+                if (!movieData) {
+                    console.log(`   -> ⏭️ Skippar "${title}" (Hittades inte på TMDB - förmodligen en TV-serie)`);
+                    continue;
+                }
+
                 moviesToday.push({
                     title, channel: cleanChannelName, originalChannel: rawId, originalCategory: categoryMatches.join(', '),
                     startTime: startTimeMs, endTime: stopTimeMs,
-                    image: movieData ? movieData.poster : null, backdrop: movieData ? movieData.backdrop : null,
-                    year: movieData ? movieData.year : (prog.match(/<date>(\d{4})<\/date>/)?.[1] || null),
-                    actors: movieData ? movieData.actors : null, director: movieData ? movieData.director : null,
-                    imdbRate: movieData ? movieData.rating : null,
-                    rottenRate: movieData ? movieData.rottenRate : null, metaRate: movieData ? movieData.metaRate : null,
-                    genres: movieData ? movieData.genres : null, language: movieData ? movieData.language : null,
-                    desc: movieData?.desc || (prog.match(/<desc[^>]*>(.*?)<\/desc>/)?.[1] || "Ingen beskrivning."),
-                    imdbUrl: movieData?.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
-                    runtime: movieData ? movieData.runtime : null, date: todayStr
+                    image: movieData.poster, backdrop: movieData.backdrop,
+                    year: movieData.year,
+                    actors: movieData.actors, director: movieData.director,
+                    imdbRate: movieData.rating,
+                    rottenRate: movieData.rottenRate, metaRate: movieData.metaRate,
+                    genres: movieData.genres, language: movieData.language,
+                    desc: movieData.desc || (prog.match(/<desc[^>]*>(.*?)<\/desc>/)?.[1] || "Ingen beskrivning."),
+                    imdbUrl: movieData.imdbId ? `https://www.imdb.com/title/${movieData.imdbId}/` : null,
+                    runtime: movieData.runtime, date: todayStr
                 });
                 await new Promise(r => setTimeout(r, 200));
             }
@@ -235,7 +236,6 @@ async function updateTVGuide() {
     fs.writeFileSync('movies.json', JSON.stringify(allMovies, null, 2));
 }
 
-// SVT PLAY
 async function updateSVTPlay() {
     if (!TMDB_KEY) return;
     const todayStr = getSwedishDate();
@@ -270,7 +270,6 @@ async function updateSVTPlay() {
                 currentSweepIds.add(movie.id);
 
                 let existing = existingMovies.find(m => m.tmdbId === movie.id || (m.title === movie.title && m.year === movie.release_date?.substring(0,4)));
-
                 const hasValidRating = existing && existing.imdbRate !== null && existing.imdbRate !== "N/A";
 
                 if (hasValidRating) {
@@ -302,28 +301,15 @@ async function updateSVTPlay() {
     }
 
     if (newOrUpdatedList.length < 50) return;
-
     const finalData = newOrUpdatedList.filter(m => m.stillPresent);
     finalData.forEach(m => delete m.stillPresent);
-
     fs.writeFileSync('svtplay.json', JSON.stringify(finalData, null, 2));
     console.log(`✅ Synk klar! Totalt ${finalData.length} filmer.`);
 }
 
 async function runAll() {
-    // Hämtar variabeln från GitHub Actions, default är 'all'
     const target = process.env.SYNC_TARGET || 'all';
-
-    if (target === 'all' || target === 'tv') {
-        await updateTVGuide();
-    } else {
-        console.log(`\n⏭️ Hoppar över TV-tablån (Körläge: ${target})`);
-    }
-
-    if (target === 'all' || target === 'svt') {
-        await updateSVTPlay();
-    } else {
-        console.log(`\n⏭️ Hoppar över SVT Play (Körläge: ${target})`);
-    }
+    if (target === 'all' || target === 'tv') await updateTVGuide();
+    if (target === 'all' || target === 'svt') await updateSVTPlay();
 }
 runAll();

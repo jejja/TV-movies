@@ -311,7 +311,19 @@ async function updateSVTPlay() {
 }
 
 async function runAll() {
-    await updateTVGuide();
-    await updateSVTPlay();
+    // Hämtar variabeln från GitHub Actions, default är 'all'
+    const target = process.env.SYNC_TARGET || 'all';
+
+    if (target === 'all' || target === 'tv') {
+        await updateTVGuide();
+    } else {
+        console.log(`\n⏭️ Hoppar över TV-tablån (Körläge: ${target})`);
+    }
+
+    if (target === 'all' || target === 'svt') {
+        await updateSVTPlay();
+    } else {
+        console.log(`\n⏭️ Hoppar över SVT Play (Körläge: ${target})`);
+    }
 }
 runAll();

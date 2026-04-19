@@ -4,12 +4,22 @@ on:
   schedule:
     - cron: '0 3 * * *' # Körs kl 03:00 (UTC) varje natt
   workflow_dispatch: # Gör att vi kan köra den manuellt
+    inputs:
+      sync_target:
+        description: 'Vad vill du uppdatera?'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - tv
+          - svt
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Ger botten rättighet att spara movies.json
+      contents: write # Ger botten rättighet att spara filer
     steps:
       - name: Checka ut kod
         uses: actions/checkout@v4
@@ -23,6 +33,7 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+          SYNC_TARGET: ${{ github.event.inputs.sync_target || 'all' }}
         run: node fetchMovies.js
 
       - name: Spara och Pusha json-filer

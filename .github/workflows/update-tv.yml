@@ -15,6 +15,9 @@ on:
           - tv
           - svt
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,7 +30,7 @@ jobs:
       - name: Sätt upp Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Kör hämtskriptet
         env:

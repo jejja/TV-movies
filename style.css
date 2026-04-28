@@ -86,3 +86,21 @@ body { font-family: 'Inter', -apple-system, sans-serif; background-color: var(--
 .footer { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 11px; }
 .footer a { color: white; text-decoration: none; font-weight: 600; }
 .empty-channel { grid-column: 1 / -1; padding: 30px; background: rgba(255,255,255,0.02); border: 1px dashed #333; border-radius: 12px; text-align: center; color: var(--gray); font-size: 13px; }
+/* MOBILANPASSNING FÖR FILTER & REGLAGE */
+@media (max-width: 650px) {
+    .tools-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+    .year-slider-container {
+        min-width: 100%;
+        justify-content: space-between;
+    }
+    .sort-toggle {
+        align-self: flex-start;
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+    }
+}

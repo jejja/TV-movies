@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg   xmlns:dc="http://purl.org/dc/elements/1.1/"   xmlns:cc="http://creativecommons.org/ns#"   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"   xmlns:svg="http://www.w3.org/2000/svg"   xmlns="http://www.w3.org/2000/svg"   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"   width="1000"   height="449.74722"   viewBox="0 0 1000 449.74722"   version="1.1"   id="svg17"   sodipodi:docname="Svt1.svg"   inkscape:version="0.92.3 (2405546, 2018-03-11)">
+    <metadata     id="metadata21">
+        <rdf:RDF>
+            <cc:Work         rdf:about="">
+                <dc:format>image/svg+xml</dc:format>
+                <dc:type           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+                <dc:title>Svt1</dc:title>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <sodipodi:namedview     pagecolor="#ffffff"     bordercolor="#666666"     borderopacity="1"     objecttolerance="10"     gridtolerance="10"     guidetolerance="10"     inkscape:pageopacity="0"     inkscape:pageshadow="2"     inkscape:window-width="640"     inkscape:window-height="480"     id="namedview19"     showgrid="false"     fit-margin-top="0"     fit-margin-left="0"     fit-margin-right="0"     fit-margin-bottom="0"     inkscape:zoom="0.30567637"     inkscape:cx="579.99785"     inkscape:cy="36.766352"     inkscape:current-layer="Svt1" />
+    <title     id="title2">Svt1</title>
+    <desc     id="desc4">Created with Sketch.</desc>
+    <defs     id="defs6" />
+    <g     id="Icons-Copy"     style="fill:none;fill-rule:evenodd;stroke:none;stroke-width:1"     transform="translate(-128.00061,-168.63486)">
+        <g       id="Svt1">
+            <g         id="Page-1"         transform="matrix(1.4196148,0,0,1.4196148,127.99975,167.8218)"         style="fill:#ffffff">
+                <g           id="Group-9"           transform="translate(0,0.397027)"           style="fill:#ffffff">
+                    <polygon             id="Fill-1"             points="174.08612,69.471903 264.62655,312.14634 319.71629,312.14634 410.25673,69.471903 355.16901,69.471903 292.17243,238.32141 229.17384,69.471903 "             style="fill:#ffffff" />
+                    <path             d="M 40.21436,240.33255 6.0496072e-4,269.50096 C 15.620691,292.6394 46.985887,316.98504 89.097202,316.98504 c 47.334138,0 84.341608,-29.0092 84.341608,-74.12522 0,-29.48886 -17.1829,-51.97633 -52.52672,-68.17183 -4.86994,-2.23302 -24.934468,-11.14901 -28.782018,-12.77339 -18.600525,-7.85389 -27.642671,-16.66709 -27.642671,-27.23367 0,-10.96158 8.546078,-21.55234 26.037509,-21.55234 12.23836,0 23.45433,5.75388 34.21053,17.56998 l 38.22747,-27.72944 C 147.71185,79.546524 119.3654,64.99557 88.960078,64.99557 c -40.227871,0 -75.585808,25.909566 -75.585808,69.46367 0,30.29299 17.215165,53.74582 52.448077,68.80062 10.312564,4.40962 17.543861,7.475 25.674533,10.94546 11.62331,4.95982 30.40734,12.78751 30.40734,29.39212 0,16.59454 -16.4388,25.17597 -34.20246,25.17597 -16.02541,0 -32.915913,-10.12923 -47.4874,-28.44086"             id="Fill-2"             style="fill:#ffffff"             inkscape:connector-curvature="0" />
+                    <path             d="m 512.79939,267.77419 c -11.75036,0 -21.6213,-7.09207 -26.86026,-17.1548 -3.97661,-7.63422 -4.12987,-19.77277 -4.12987,-30.09549 V 119.74343 h 56.14439 l 18.7558,-50.271325 H 481.80926 V 0.17570737 H 430.40374 V 228.35965 c 0.0585,10.57463 0.61101,20.25041 4.61786,32.94521 11.18169,32.39704 41.50031,55.67856 77.77779,55.67856 20.7441,0 42.01452,-7.96674 57.64469,-22.60436 l -32.19803,-36.78449 c -6.79371,5.94131 -16.18068,10.17962 -25.44666,10.17962"             id="Fill-5"             style="fill:#ffffff"             inkscape:connector-curvature="0" />
+                    <polygon             id="Fill-7"             points="654.23154,312.14432 704.41706,312.14432 704.41706,69.471903 624.53805,69.471903 605.82056,119.63037 654.23154,119.63037 "             style="fill:#ffffff" />
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

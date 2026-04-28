@@ -41,6 +41,12 @@
         <span id="yearDisplay" class="year-display">1900</span>
     </div>
 
+    <div class="year-slider-container">
+        <span>⏳ Max tid:</span>
+        <input type="range" id="svtDurationSlider" class="year-slider" min="60" max="240" step="5" value="240" oninput="updateDurationDisplay(this.value, 'svtDurationDisplay')" onchange="render()">
+        <span id="svtDurationDisplay" class="year-display" style="min-width: 45px;">Alla</span>
+    </div>
+
     <label class="sort-toggle" id="sortToggleLabel">
         <input type="checkbox" id="sortNewToggle" onchange="toggleSort(this.checked)">
         <span>Nyinkommet ✨</span>
@@ -124,6 +130,18 @@
         document.getElementById('yearDisplay').innerText = val;
     }
 
+    // NYTT: Funktion som bygger om minuter till "1:20"
+    function updateDurationDisplay(val, displayId) {
+        if (val >= 240) {
+            document.getElementById(displayId).innerText = "Alla";
+            return;
+        }
+        const h = Math.floor(val / 60);
+        const m = val % 60;
+        const mStr = m < 10 ? "0" + m : m;
+        document.getElementById(displayId).innerText = `${h}:${mStr}`;
+    }
+
     function toggleSort(isChecked) {
         sortByNewest = isChecked;
         const label = document.getElementById('sortToggleLabel');
@@ -190,21 +208,33 @@
         root.innerHTML = "";
 
         const selectedMinYear = parseInt(document.getElementById('yearSlider').value) || 1900;
+        const maxDuration = parseInt(document.getElementById('svtDurationSlider').value) || 240;
         const searchTerm = document.getElementById('svtSearchInput').value.toLowerCase();
 
         let filteredMovies = allMoviesData.filter(m => {
+            // 1. Årtalsfilter
             const movieYear = parseInt(m.year) || 0;
             if (movieYear > 0 && movieYear < selectedMinYear) return false;
 
+            // 2. Tidsfilter (Maxlängd)
+            if (maxDuration < 240) {
+                let runtime = 999;
+                if (m.runtime && m.runtime > 0) runtime = m.runtime;
+                if (runtime > maxDuration) return false;
+            }
+
+            // 3. Kategorifilter
             const genres = (m.genres || "").toLowerCase();
             const isDoc = genres.includes("documentary") || genres.includes("dokumentär");
             const hasMusic = genres.includes("music") || genres.includes("musik");
+
             const isMusicCategory = hasMusic && (isDoc || !genres.includes(","));
 
             if (currentFilter === 'documentary' && !isDoc) return false;
             if (currentFilter === 'music' && !isMusicCategory) return false;
             if (currentFilter === 'film' && (isDoc || isMusicCategory)) return false;
 
+            // 4. Sökfilter
             if (searchTerm !== "") {
                 const titleMatch = m.title && m.title.toLowerCase().includes(searchTerm);
                 const actorMatch = m.actors && m.actors.toLowerCase().includes(searchTerm);

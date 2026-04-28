@@ -32,6 +32,14 @@
     </div>
 </div>
 
+<div class="tools-container" style="padding: 16px 16px 10px 16px;">
+    <div class="year-slider-container">
+        <span>⏳ Max tid:</span>
+        <input type="range" id="tvDurationSlider" class="year-slider" min="60" max="240" step="5" value="240" oninput="updateDurationDisplay(this.value, 'tvDurationDisplay')" onchange="render()">
+        <span id="tvDurationDisplay" class="year-display" style="min-width: 45px;">Alla</span>
+    </div>
+</div>
+
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
 <div id="sideMenu" class="side-menu">
     <button class="menu-close" onclick="toggleMenu()">✕</button>
@@ -81,9 +89,27 @@
     let currentTab = 'today';
     let allMoviesData = [];
 
-    // Säker funktion som byter ut en trasig bild mot text
+    // LOKALA kanalloggor
+    const channelLogos = {
+        "SVT1": "logos/svt1.svg",
+        "SVT2": "logos/svt2.svg",
+        "TV3": "logos/tv3.svg"
+    };
+
     function fallbackLogo(imgElement, chName) {
         imgElement.outerHTML = `<h2 class="section-title" style="margin:0;">${chName}</h2>`;
+    }
+
+    // NYTT: Funktion som bygger om minuter till "1:20"
+    function updateDurationDisplay(val, displayId) {
+        if (val >= 240) {
+            document.getElementById(displayId).innerText = "Alla";
+            return;
+        }
+        const h = Math.floor(val / 60);
+        const m = val % 60;
+        const mStr = m < 10 ? "0" + m : m; // Lägger till nolla, tex 1:05
+        document.getElementById(displayId).innerText = `${h}:${mStr}`;
     }
 
     async function init() {
@@ -123,6 +149,7 @@
 
         const searchInput = document.getElementById('tvSearchInput');
         const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+        const maxDuration = parseInt(document.getElementById('tvDurationSlider').value) || 240;
 
         const now = new Date();
         const logicalDay = new Date(now.getTime() - 5 * 60 * 60 * 1000);
@@ -133,6 +160,20 @@
             ? allMoviesData.filter(m => m.startTime >= startOfTodayMs)
             : allMoviesData.filter(m => m.startTime < startOfTodayMs);
 
+        // Filtrera på Tidslängd
+        if (maxDuration < 240) {
+            moviesToDisplay = moviesToDisplay.filter(m => {
+                let runtime = 999; // Om vi inte har en tid, sätt högt så den döljs vid filter
+                if (m.runtime && m.runtime > 0) {
+                    runtime = m.runtime;
+                } else if (m.startTime && m.endTime) {
+                    runtime = Math.floor((m.endTime - m.startTime) / 60000);
+                }
+                return runtime <= maxDuration;
+            });
+        }
+
+        // Filtrera på Sökord
         if (searchTerm !== "") {
             moviesToDisplay = moviesToDisplay.filter(m => {
                 const titleMatch = m.title && m.title.toLowerCase().includes(searchTerm);
@@ -161,11 +202,9 @@
             if (currentTab === 'history') chMovies.sort((a, b) => b.startTime - a.startTime);
             else chMovies.sort((a, b) => a.startTime - b.startTime);
 
-            if (chMovies.length > 0 || searchTerm === "") {
+            if (chMovies.length > 0 || (searchTerm === "" && maxDuration === 240)) {
                 const chSection = document.createElement('div');
-
-                // Hämta loggan som vi sög ut från EPG:n!
-                const logoUrl = chMovies.length > 0 ? chMovies[0].channelLogo : null;
+                const logoUrl = channelLogos[ch];
 
                 const fallbackText = `<h2 class="section-title" style="margin:0;">${ch}</h2>`;
                 const headerHtml = logoUrl
@@ -175,7 +214,7 @@
                 chSection.innerHTML = `
                     <div class="channel-header">${headerHtml}</div>
                     <div class="container" style="padding-top:0;">
-                        ${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer matchar sökningen</div>'}
+                        ${chMovies.length > 0 ? chMovies.map(m => createCardHTML(m)).join('') : '<div class="empty-channel">Inga filmer matchar filterna</div>'}
                     </div>
                 `;
                 root.appendChild(chSection);
